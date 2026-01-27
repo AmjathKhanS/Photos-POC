@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(if [ -f \"/mnt/d/Photos Ai/photo-viewer/venv_onnx/bin/python\" ])",
+      "Bash(then \"/mnt/d/Photos Ai/photo-viewer/venv_onnx/bin/python\" -m pip list)",
+      "Bash(else echo \"venv not found\")",
+      "Bash(fi)"
+    ]
+  }
+}
