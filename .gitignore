@@ -34,20 +34,48 @@ server.log
 *.cache
 .parcel-cache/
 
-# Database (optional - uncomment if you don't want to commit the database)
-# server/data/*.db
+# Database - DO NOT COMMIT (contains sensitive face data)
+server/data/*.db
+server/data/*.db-*
+server/data/db.json
 
-# Photo files (don't commit actual photos)
-# Uncomment these if you don't want photos in git
-# *.jpg
-# *.jpeg
-# *.png
-# *.heic
-# *.gif
-# *.webp
+# Photos directory - DO NOT COMMIT (large files, privacy)
+photos/
+mobile/
+D:\Photos Ai\mobile/
+/mnt/d/Photos Ai/mobile/
+
+# Photo files (DO NOT commit actual photos!)
+# These are excluded to keep repository size manageable
+# and protect privacy
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.gif
+*.webp
+*.JPG
+*.JPEG
+*.PNG
+*.HEIC
+*.GIF
+*.WEBP
+*.mov
+*.MOV
+*.mp4
+*.MP4
 
 # Temporary files
 *.tmp
 *.temp
-.DS_Store
-node_modules
+
+# PM2
+.pm2
+ecosystem.config.js.backup
+
+# Docker
+.dockerignore.backup
+
+# Backup files
+*.backup
+*~

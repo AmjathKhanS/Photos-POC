@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  photo-viewer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: photo-viewer
+    restart: unless-stopped
+
+    ports:
+      - "${PORT:-3002}:3002"
+
+    environment:
+      # Server Configuration
+      NODE_ENV: production
+      PORT: 3002
+      HOST: 0.0.0.0
+
+      # CORS Configuration
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+
+      # Paths (mapped to volumes below)
+      PHOTOS_DIR: /data/photos
+      DB_DIR: /data/db
+      CACHE_DIR: /var/cache/photo-viewer
+      LOG_DIR: /var/log/photo-viewer
+
+      # Python Configuration
+      PYTHON_EXECUTABLE: python3
+      PYTHON_VENV_PATH: /opt/venv
+      FACE_SERVICE_PATH: /app/server/face-service
+
+      # Face Detection
+      MIN_FACE_CONFIDENCE: ${MIN_FACE_CONFIDENCE:-0.95}
+
+      # Cron Schedules
+      CRON_DAILY_MEMORIES: ${CRON_DAILY_MEMORIES:-0 6 * * *}
+      CRON_WEEKLY_MEMORIES: ${CRON_WEEKLY_MEMORIES:-0 7 * * MON}
+      CRON_MONTHLY_MEMORIES: ${CRON_MONTHLY_MEMORIES:-0 8 1 * *}
+
+      # Performance
+      MAX_THUMBNAIL_SIZE: ${MAX_THUMBNAIL_SIZE:-200}
+      THUMBNAIL_QUALITY: ${THUMBNAIL_QUALITY:-60}
+      MAX_IMAGE_SIZE: ${MAX_IMAGE_SIZE:-2400}
+
+      # Security
+      ENABLE_RATE_LIMITING: ${ENABLE_RATE_LIMITING:-true}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+
+    volumes:
+      # Mount your photos directory (CHANGE THIS PATH!)
+      - ${PHOTOS_PATH:-./photos}:/data/photos:ro
+
+      # Database persistence
+      - photo-viewer-db:/data/db
+
+      # Cache persistence
+      - photo-viewer-cache:/var/cache/photo-viewer
+
+      # Logs
+      - photo-viewer-logs:/var/log/photo-viewer
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+volumes:
+  photo-viewer-db:
+    driver: local
+  photo-viewer-cache:
+    driver: local
+  photo-viewer-logs:
+    driver: local

@@ -7,8 +7,18 @@
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start"
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "start": "cd server && npm start",
+    "start:prod": "NODE_ENV=production node server/dist/index.js",
+    "docker:build": "docker build -t photo-viewer:latest .",
+    "docker:run": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:rebuild": "docker-compose down && docker build --no-cache -t photo-viewer:latest . && docker-compose up -d",
+    "validate:env": "node -e \"if (!process.env.PHOTOS_DIR) { console.error('ERROR: PHOTOS_DIR not set'); process.exit(1); } console.log('Environment validated')\"",
+    "deploy:check": "npm run validate:env && npm run build && echo 'Ready for deployment'"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

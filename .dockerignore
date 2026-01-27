@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+venv_onnx
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+dist
+build
+.cache
+
+# Development
+.env
+.env.local
+.env.*.local
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Data
+server/data/*.db
+server/data/*.json
+
+# Documentation (optional - include if you want docs in image)
+*.md
+!README.md
+
+# Test files
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Temporary files
+*.tmp
+*.temp

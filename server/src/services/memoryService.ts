@@ -18,17 +18,36 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PYTHON_SERVICE_PATH = path.join(__dirname, '../../face-service');
-const PHOTOS_DIR = process.env.PHOTOS_DIR || (os.platform() === 'win32' ? 'D:\\Photos Ai\\mobile' : '/mnt/d/Photos Ai/mobile');
-const DB_PATH = path.join(__dirname, '../../data/faces.db');
+// Validate required environment variables
+if (!process.env.PHOTOS_DIR) {
+  console.error('ERROR: PHOTOS_DIR environment variable is required');
+  process.exit(1);
+}
 
-// Use ONNX virtual environment Python
-const VENV_PYTHON = path.join(__dirname, '../../../venv_onnx/Scripts/python.exe');
-const PYTHON_CMD = fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : (os.platform() === 'win32' ? 'python' : 'python3');
+const PYTHON_SERVICE_PATH = process.env.FACE_SERVICE_PATH || path.join(__dirname, '../../face-service');
+const PHOTOS_DIR = process.env.PHOTOS_DIR;
+const DB_PATH = process.env.SQLITE_DB_PATH || path.join(process.env.DB_DIR || path.join(__dirname, '../../data'), 'faces.db');
+
+// Python executable configuration
+const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python3';
+const VENV_PATH = process.env.PYTHON_VENV_PATH;
+
+// Determine Python command to use
+let PYTHON_CMD: string;
+if (VENV_PATH) {
+  // Use virtual environment
+  const venvPython = path.join(VENV_PATH, os.platform() === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  PYTHON_CMD = fs.existsSync(venvPython) ? venvPython : PYTHON_EXECUTABLE;
+} else {
+  // Use system Python
+  PYTHON_CMD = PYTHON_EXECUTABLE;
+}
 
 // Helper function to convert WSL paths to Windows paths when using Windows Python
 function toWindowsPath(wslPath: string): string {
-  if (!VENV_PYTHON.includes('.exe')) return wslPath; // Not using Windows Python
+  if (os.platform() !== 'win32' || !wslPath.startsWith('/mnt/')) {
+    return wslPath; // Not Windows or not a WSL path
+  }
   // Convert /mnt/x/... to X:\...
   return wslPath.replace(/^\/mnt\/([a-z])\//i, (_, drive) => `${drive.toUpperCase()}:\\`).replace(/\//g, '\\');
 }

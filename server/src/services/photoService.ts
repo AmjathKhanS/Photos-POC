@@ -5,11 +5,19 @@ import heicConvert from 'heic-convert';
 import mime from 'mime-types';
 import { getCacheKey, getFromCache, saveToCache } from './thumbnailService.js';
 
-// Configure the photos directory path
-// Use Windows path when running on Windows, WSL path otherwise
+// Configure the photos directory path from environment variable
 import os from 'os';
-const PHOTOS_DIR = process.env.PHOTOS_DIR || (os.platform() === 'win32' ? 'D:\\Photos Ai\\mobile' : '/mnt/d/Photos Ai/mobile');
-const THUMBNAIL_SIZE = 200; // Smaller for faster loading
+
+// Validate PHOTOS_DIR environment variable
+if (!process.env.PHOTOS_DIR) {
+  console.error('ERROR: PHOTOS_DIR environment variable is not set!');
+  console.error('Please set PHOTOS_DIR to your photos directory path.');
+  console.error('Example: PHOTOS_DIR=/home/user/photos or PHOTOS_DIR=C:\\Users\\user\\Photos');
+  process.exit(1);
+}
+
+const PHOTOS_DIR = process.env.PHOTOS_DIR;
+const THUMBNAIL_SIZE = parseInt(process.env.MAX_THUMBNAIL_SIZE || '200');
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'];
 
 interface Photo {

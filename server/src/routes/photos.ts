@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { getPhotoList, getThumbnail, getFullImage } from '../services/photoService.js';
+import { validateFilename, validatePagination } from '../middleware/validation.js';
 
 const router = Router();
 
 // GET /api/photos - List all photos (with pagination)
-router.get('/', async (req, res) => {
+router.get('/', validatePagination, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
@@ -28,7 +29,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/photos/thumbnail/:filename - Get thumbnail
-router.get('/thumbnail/:filename', async (req, res) => {
+router.get('/thumbnail/:filename', validateFilename, async (req, res) => {
   try {
     const { filename } = req.params;
     const { buffer, contentType } = await getThumbnail(filename);
@@ -42,7 +43,7 @@ router.get('/thumbnail/:filename', async (req, res) => {
 });
 
 // GET /api/photos/full/:filename - Get full-size image
-router.get('/full/:filename', async (req, res) => {
+router.get('/full/:filename', validateFilename, async (req, res) => {
   try {
     const { filename } = req.params;
     const { buffer, contentType } = await getFullImage(filename);
