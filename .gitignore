@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+venv_onnx/
+
+# Build outputs
+dist/
+build/
+*.pyc
+__pycache__/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+server.log
+
+# Cache
+.cache/
+*.cache
+.parcel-cache/
+
+# Database (optional - uncomment if you don't want to commit the database)
+# server/data/*.db
+
+# Photo files (don't commit actual photos)
+# Uncomment these if you don't want photos in git
+# *.jpg
+# *.jpeg
+# *.png
+# *.heic
+# *.gif
+# *.webp
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+node_modules
