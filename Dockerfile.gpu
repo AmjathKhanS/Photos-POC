@@ -1,5 +1,6 @@
-# Multi-stage Dockerfile for Photo Viewer Application
-# Optimized for production deployment
+# Multi-stage Dockerfile for Photo Viewer Application with GPU Support
+# Optimized for production deployment with NVIDIA GPU acceleration
+# Requires: NVIDIA Docker runtime and CUDA-capable GPU
 
 # ===================================
 # Stage 1: Build Client
@@ -40,14 +41,17 @@ COPY server/ ./
 RUN npm run build
 
 # ===================================
-# Stage 3: Setup Python Environment
+# Stage 3: Setup Python Environment with GPU
 # ===================================
-FROM python:3.12-slim AS python-builder
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04 AS python-builder
 
 WORKDIR /app
 
-# Install system dependencies for Python packages
+# Install Python and system dependencies
 RUN apt-get update && apt-get install -y \
+    python3.12 \
+    python3-pip \
+    python3-venv \
     build-essential \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -58,36 +62,43 @@ COPY requirements_onnx.txt ./
 COPY server/face-service/requirements.txt ./face-service-requirements.txt
 
 # Create virtual environment and install packages
-RUN python -m venv /opt/venv
+RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Install GPU-enabled ONNX Runtime
 RUN pip install --upgrade pip && \
+    pip install --no-cache-dir onnxruntime-gpu>=1.16.0 && \
+    pip install --no-cache-dir -r requirements_onnx.txt --no-deps || \
     pip install --no-cache-dir -r requirements_onnx.txt
 
 # Pre-download InsightFace models during build to avoid runtime download
 # This downloads ~300MB of ONNX models (buffalo_l) to ~/.insightface/
 RUN python3 -c "from insightface.app import FaceAnalysis; \
     print('Downloading InsightFace models...'); \
-    app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']); \
+    app = FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider', 'CPUExecutionProvider']); \
     app.prepare(ctx_id=0, det_size=(640, 640)); \
     print('Models downloaded successfully')"
 
 # ===================================
-# Stage 4: Production Runtime
+# Stage 4: Production Runtime with GPU
 # ===================================
-FROM node:20-alpine
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
-# Install Python and system dependencies
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    libstdc++ \
-    libgomp \
-    && ln -sf python3 /usr/bin/python
+# Install Node.js and Python runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    python3.12 \
+    python3-pip \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libgomp1 \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app user with home directory for InsightFace models
-RUN addgroup -g 1001 -S photoviewer && \
-    adduser -S -D -u 1001 -h /home/photoviewer -s /sbin/nologin -G photoviewer -g photoviewer photoviewer
+RUN groupadd -g 1001 photoviewer && \
+    useradd -m -u 1001 -g photoviewer -s /bin/bash photoviewer
 
 WORKDIR /app
 
@@ -96,7 +107,6 @@ COPY --from=python-builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy pre-downloaded InsightFace models from builder
-# Models are in root's home directory: /root/.insightface/
 COPY --from=python-builder /root/.insightface /home/photoviewer/.insightface
 RUN chown -R photoviewer:photoviewer /home/photoviewer/.insightface
 
@@ -130,7 +140,8 @@ ENV NODE_ENV=production \
     CACHE_DIR=/var/cache/photo-viewer \
     LOG_DIR=/var/log/photo-viewer \
     PYTHON_VENV_PATH=/opt/venv \
-    FACE_SERVICE_PATH=/app/server/face-service
+    FACE_SERVICE_PATH=/app/server/face-service \
+    ONNX_EXECUTION_PROVIDER=CUDAExecutionProvider
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

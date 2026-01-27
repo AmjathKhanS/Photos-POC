@@ -33,6 +33,8 @@ services:
 
       # Face Detection
       MIN_FACE_CONFIDENCE: ${MIN_FACE_CONFIDENCE:-0.95}
+      ONNX_EXECUTION_PROVIDER: ${ONNX_EXECUTION_PROVIDER:-CPUExecutionProvider}
+      ONNX_DET_SIZE: ${ONNX_DET_SIZE:-640}
 
       # Cron Schedules
       CRON_DAILY_MEMORIES: ${CRON_DAILY_MEMORIES:-0 6 * * *}
