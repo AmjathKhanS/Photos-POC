@@ -9,7 +9,12 @@ import { fileURLToPath } from 'url';
 import photosRouter from './routes/photos.js';
 import facesRouter from './routes/faces.js';
 import memoriesRouter from './routes/memories.js';
+import semanticSearchRouter from './routes/semanticSearch.js';
+import smartAlbumsRouter from './routes/smartAlbums.js';
+import documentIntelligenceRouter from './routes/documentIntelligence.js';
+import indexingRouter from './routes/indexing.js';
 import { generateDailyMemories, generateWeeklyMemories, generateMonthlyMemories } from './services/memoryService.js';
+import { initAutoIndexing } from './services/autoIndexService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,6 +109,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api/photos', photosRouter);
 app.use('/api/faces', facesRouter);
 app.use('/api/memories', memoriesRouter);
+app.use('/api/semantic-search', semanticSearchRouter);
+app.use('/api/smart-albums', smartAlbumsRouter);
+app.use('/api/documents', documentIntelligenceRouter);
+app.use('/api/indexing', indexingRouter);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {
@@ -187,4 +196,7 @@ console.log(`  - Monthly highlights: ${CRON_MONTHLY}`);
 app.listen(PORT, HOST, () => {
   console.log(`\n✅ Server running on http://${HOST}:${PORT}`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/health\n`);
+
+  // Initialize auto-indexing in background
+  initAutoIndexing();
 });

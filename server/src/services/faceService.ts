@@ -19,6 +19,12 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper to safely join paths in WSL environment
+function safePath(...parts: string[]): string {
+  // Use simple string concatenation to avoid path.join converting WSL paths
+  return parts.join('/').replace(/\/+/g, '/');
+}
+
 // Validate required environment variables
 if (!process.env.PHOTOS_DIR) {
   console.error('ERROR: PHOTOS_DIR environment variable is required');
@@ -109,9 +115,9 @@ export async function scanAllPhotos(): Promise<{ message: string; error?: string
   let stderrOutput = '';
 
   scanProcess = spawn(PYTHON_CMD, [
-    toWindowsPath(pythonScript),
-    '--photos-dir', toWindowsPath(PHOTOS_DIR),
-    '--db-path', toWindowsPath(DB_PATH),
+    pythonScript,
+    '--photos-dir', PHOTOS_DIR,
+    '--db-path', DB_PATH,
     '--action', 'scan',
     '--min-confidence', '0.95'  // Filter out blurred/low-quality faces
   ]);
@@ -212,7 +218,7 @@ export async function getFaceThumbnail(faceId: number): Promise<{ buffer: Buffer
   const bbox = typeof face.bounding_box === 'string'
     ? JSON.parse(face.bounding_box)
     : face.bounding_box;
-  const imagePath = path.join(PHOTOS_DIR, face.photo_filename);
+  const imagePath = safePath(PHOTOS_DIR, face.photo_filename);
 
   // Check if file exists
   if (!fs.existsSync(imagePath)) {

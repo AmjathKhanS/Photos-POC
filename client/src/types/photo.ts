@@ -6,4 +6,7 @@ export interface Photo {
   mimeType: string;
   size: number;
   modifiedAt: string;
+  width?: number;
+  height?: number;
+  isScreenshot?: boolean;
 }

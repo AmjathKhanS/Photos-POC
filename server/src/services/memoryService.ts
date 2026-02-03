@@ -74,9 +74,9 @@ export async function assessPhotoQuality(): Promise<{ message: string; error?: s
 
   return new Promise((resolve) => {
     const process = spawn(PYTHON_CMD, [
-      toWindowsPath(pythonScript),
-      '--photos-dir', toWindowsPath(PHOTOS_DIR),
-      '--db-path', toWindowsPath(DB_PATH),
+      pythonScript,
+      '--photos-dir', PHOTOS_DIR,
+      '--db-path', DB_PATH,
       '--action', 'analyze-all'
     ]);
 
@@ -129,9 +129,9 @@ export async function extractPhotoMetadata(): Promise<{ message: string; error?:
 
   return new Promise((resolve) => {
     const process = spawn(PYTHON_CMD, [
-      toWindowsPath(pythonScript),
-      '--photos-dir', toWindowsPath(PHOTOS_DIR),
-      '--db-path', toWindowsPath(DB_PATH),
+      pythonScript,
+      '--photos-dir', PHOTOS_DIR,
+      '--db-path', DB_PATH,
       '--action', 'extract-all'
     ]);
 
@@ -178,8 +178,8 @@ async function runMemoryGenerator(action: string, args: string[] = []): Promise<
 
   return new Promise((resolve) => {
     const process = spawn(PYTHON_CMD, [
-      toWindowsPath(pythonScript),
-      '--db-path', toWindowsPath(DB_PATH),
+      pythonScript,
+      '--db-path', DB_PATH,
       '--action', action,
       ...args
     ]);

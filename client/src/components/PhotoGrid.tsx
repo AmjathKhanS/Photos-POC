@@ -8,9 +8,19 @@ interface PhotoGridProps {
   hasMore?: boolean;
   onLoadMore?: () => void;
   loading?: boolean;
+  selectedPhotoIds?: Set<string>;
+  selectionMode?: boolean;
 }
 
-export function PhotoGrid({ photos, onPhotoClick, hasMore, onLoadMore, loading }: PhotoGridProps) {
+export function PhotoGrid({
+  photos,
+  onPhotoClick,
+  hasMore,
+  onLoadMore,
+  loading,
+  selectedPhotoIds = new Set(),
+  selectionMode = false
+}: PhotoGridProps) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,6 +50,8 @@ export function PhotoGrid({ photos, onPhotoClick, hasMore, onLoadMore, loading }
             key={photo.id}
             photo={photo}
             onClick={() => onPhotoClick(index)}
+            isSelected={selectedPhotoIds.has(photo.id)}
+            selectionMode={selectionMode}
           />
         ))}
       </div>
