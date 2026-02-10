@@ -1609,6 +1609,45 @@ body {
   cursor: not-allowed;
 }
 
+/* Refresh button */
+.refresh-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  border-radius: 50%;
+  color: #e8eaed;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-color: #3c4043;
+}
+
+.refresh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.refresh-button:disabled span {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .selection-mode-button {
   display: flex;
   align-items: center;
@@ -1797,6 +1836,12 @@ body {
 .smart-albums-header .subtitle {
   color: #6b7280;
   margin: 0;
+}
+
+.smart-albums-header .header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .generate-button {

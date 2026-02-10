@@ -174,6 +174,25 @@ export function calculateDistance(
 }
 
 /**
+ * Get photos by city
+ * @param city - City name
+ * @param country - Country name
+ * @returns Array of photo locations in that city
+ */
+export function getPhotosByCity(city: string, country: string): PhotoLocation[] {
+  return locationDb.getPhotosByCity(city, country);
+}
+
+/**
+ * Get photos by country
+ * @param country - Country name
+ * @returns Array of photo locations in that country
+ */
+export function getPhotosByCountry(country: string): PhotoLocation[] {
+  return locationDb.getPhotosByCountry(country);
+}
+
+/**
  * Cleanup: Close exiftool when shutting down
  */
 export async function cleanup(): Promise<void> {

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import type { Person, ScanStatus, FaceStats } from '../types/face';
 
-interface UseFacesResult {
+interface FacesContextValue {
   persons: Person[];
   scanStatus: ScanStatus;
   stats: FaceStats | null;
@@ -13,13 +13,17 @@ interface UseFacesResult {
   deletePerson: (personId: number) => Promise<void>;
   assignFaceToPerson: (faceId: number, personId: number) => Promise<void>;
   refetch: () => void;
+  isInitialized: boolean;
 }
 
-export function useFaces(): UseFacesResult {
+const FacesContext = createContext<FacesContextValue | undefined>(undefined);
+
+export function FacesProvider({ children }: { children: ReactNode }) {
   const [persons, setPersons] = useState<Person[]>([]);
   const [scanStatus, setScanStatus] = useState<ScanStatus>({ status: 'idle', total: 0, processed: 0 });
   const [stats, setStats] = useState<FaceStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const pollIntervalRef = useRef<number | null>(null);
 
   const fetchPersons = useCallback(async () => {
@@ -28,6 +32,7 @@ export function useFaces(): UseFacesResult {
       if (response.ok) {
         const data = await response.json();
         setPersons(data);
+        setIsInitialized(true);
       }
     } catch (error) {
       console.error('Error fetching persons:', error);
@@ -145,11 +150,13 @@ export function useFaces(): UseFacesResult {
     await fetchPersons();
   };
 
-  // Only fetch once on mount, not on every dependency change
+  // Initial fetch on mount - only run when isInitialized changes
   useEffect(() => {
-    fetchPersons();
-    fetchStats();
-    fetchScanStatus();
+    if (!isInitialized) {
+      fetchPersons();
+      fetchStats();
+      fetchScanStatus();
+    }
 
     return () => {
       if (pollIntervalRef.current) {
@@ -157,19 +164,34 @@ export function useFaces(): UseFacesResult {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isInitialized]);
 
-  return {
-    persons,
-    scanStatus,
-    stats,
-    loading,
-    startScan,
-    runClustering,
-    createPerson,
-    renamePerson,
-    deletePerson,
-    assignFaceToPerson,
-    refetch: fetchPersons
-  };
+  return (
+    <FacesContext.Provider
+      value={{
+        persons,
+        scanStatus,
+        stats,
+        loading,
+        startScan,
+        runClustering,
+        createPerson,
+        renamePerson,
+        deletePerson,
+        assignFaceToPerson,
+        refetch: fetchPersons,
+        isInitialized,
+      }}
+    >
+      {children}
+    </FacesContext.Provider>
+  );
+}
+
+export function useFacesContext() {
+  const context = useContext(FacesContext);
+  if (context === undefined) {
+    throw new Error('useFacesContext must be used within a FacesProvider');
+  }
+  return context;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMemories } from '../hooks/useMemories';
+import { useMemoriesContext } from '../contexts/MemoriesContext';
 import { MemoryCard } from './MemoryCard';
 import { LoadingSpinner } from './LoadingSpinner';
 import type { Memory } from '../types/memory';
@@ -9,7 +9,7 @@ interface MemoriesViewProps {
 }
 
 export function MemoriesView({ onMemoryClick }: MemoriesViewProps) {
-  const { memories, loading, error, dismissMemory, generateDaily } = useMemories();
+  const { memories, loading, error, dismissMemory, generateDaily, refetch } = useMemoriesContext();
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerateDaily = async () => {
@@ -60,6 +60,14 @@ export function MemoriesView({ onMemoryClick }: MemoriesViewProps) {
           </p>
         </div>
         <div className="memories-actions">
+          <button
+            className="refresh-button"
+            onClick={refetch}
+            disabled={loading}
+            title="Refresh memories"
+          >
+            <span>{loading ? '⟳' : '↻'}</span>
+          </button>
           <button
             className="btn-primary"
             onClick={handleGenerateDaily}

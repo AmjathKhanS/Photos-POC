@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
-import { usePhotos } from './hooks/usePhotos';
+import { useState, useMemo } from 'react';
+import { usePhotosContext } from './contexts/PhotosContext';
+import { useLocationContext } from './contexts/LocationContext';
 import { useSemanticSearch } from './hooks/useSemanticSearch';
 import { PhotoGrid } from './components/PhotoGrid';
 import { Lightbox } from './components/Lightbox';
@@ -13,6 +14,7 @@ import { SmartAlbumsView } from './components/SmartAlbumsView';
 import { AlbumDetailView } from './components/AlbumDetailView';
 import { ScreenshotsView } from './components/ScreenshotsView';
 import { PlacesView } from './components/PlacesView';
+import { LocationPhotosView } from './components/LocationPhotosView';
 import { IndexingStatusBar } from './components/IndexingStatusBar';
 import { Sidebar } from './components/Sidebar';
 import { SearchBar, SearchMode } from './components/SearchBar';
@@ -25,7 +27,7 @@ import type { Photo } from './types/photo';
 import type { Memory } from './types/memory';
 import './styles/index.css';
 
-type View = 'photos' | 'places' | 'people' | 'person-photos' | 'duplicates' | 'memories' | 'memory-detail' | 'smart-albums' | 'album-detail' | 'screenshots';
+type View = 'photos' | 'places' | 'location-photos' | 'people' | 'person-photos' | 'duplicates' | 'memories' | 'memory-detail' | 'smart-albums' | 'album-detail' | 'screenshots';
 
 // Minimal photo type for lightbox compatibility
 interface LightboxPhoto {
@@ -36,14 +38,23 @@ interface LightboxPhoto {
 }
 
 export default function App() {
-  const { photos, loading, error, hasMore, loadMore, total } = usePhotos();
+  const [currentView, setCurrentView] = useState<View>('photos');
+
+  // Use global contexts - data persists across tab switches
+  const { photos, loading, error, hasMore, loadMore, total, refetch: refetchPhotos } = usePhotosContext();
+  const { totalWithLocation } = useLocationContext();
   const { search: semanticSearch } = useSemanticSearch();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<LightboxPhoto[]>([]);
-  const [currentView, setCurrentView] = useState<View>('photos');
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    type: 'city' | 'country';
+    city?: string;
+    country: string;
+    count: number;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchMode, setSearchMode] = useState<SearchMode>('filename');
   const [semanticResults, setSemanticResults] = useState<Photo[]>([]);
@@ -54,15 +65,6 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
-  const [locationCount, setLocationCount] = useState<number>(0);
-
-  // Fetch location count on mount
-  useEffect(() => {
-    fetch('/api/locations/count')
-      .then(res => res.json())
-      .then(data => setLocationCount(data.count))
-      .catch(err => console.error('Error fetching location count:', err));
-  }, []);
 
   // Handle search
   const handleSearch = (query: string, mode: SearchMode) => {
@@ -203,12 +205,19 @@ export default function App() {
     } else if (currentView === 'album-detail' && selectedAlbum) {
       items.push({ label: 'Smart Albums', onClick: handleBackToAlbums });
       items.push({ label: selectedAlbum.title });
+    } else if (currentView === 'location-photos' && selectedLocation) {
+      items.push({ label: 'Places', onClick: handleBackToPlaces });
+      const locationLabel = selectedLocation.type === 'city'
+        ? `${selectedLocation.city}, ${selectedLocation.country}`
+        : selectedLocation.country;
+      items.push({ label: locationLabel });
     } else if (currentView === 'duplicates') {
       items.push({ label: 'People', onClick: handleBackFromDuplicates });
       items.push({ label: 'Duplicates' });
     } else {
       const viewNames: Record<string, string> = {
         photos: 'Photos',
+        places: 'Places',
         people: 'People',
         memories: 'Memories',
         'smart-albums': 'Smart Albums',
@@ -302,6 +311,27 @@ export default function App() {
     console.log('Smart albums generated successfully');
   };
 
+  const handleCityClick = (city: string, country: string, count: number) => {
+    setSelectedLocation({ type: 'city', city, country, count });
+    setCurrentView('location-photos');
+  };
+
+  const handleCountryClick = (country: string, count: number) => {
+    setSelectedLocation({ type: 'country', country, count });
+    setCurrentView('location-photos');
+  };
+
+  const handleBackToPlaces = () => {
+    setSelectedLocation(null);
+    setCurrentView('places');
+  };
+
+  const handleLocationPhotoClick = (locationPhotos: Photo[], index: number) => {
+    // Use location-specific photos for lightbox
+    setLightboxPhotos(locationPhotos);
+    setLightboxIndex(index);
+  };
+
   if (loading && photos.length === 0) {
     return <LoadingSpinner />;
   }
@@ -324,7 +354,7 @@ export default function App() {
           setIsMobileMenuOpen(false);
         }}
         photoCount={total}
-        locationCount={locationCount}
+        locationCount={totalWithLocation}
         isMobileMenuOpen={isMobileMenuOpen}
       />
 
@@ -344,6 +374,14 @@ export default function App() {
           <div className="header-right">
             {currentView === 'photos' && !isSelectionMode && (
               <>
+                <button
+                  className="refresh-button"
+                  onClick={refetchPhotos}
+                  disabled={loading}
+                  title="Refresh photos"
+                >
+                  <span>{loading ? '⟳' : '↻'}</span>
+                </button>
                 <button
                   className="selection-mode-button"
                   onClick={() => setIsSelectionMode(true)}
@@ -444,7 +482,17 @@ export default function App() {
             />
           )}
           {currentView === 'places' && (
-            <PlacesView />
+            <PlacesView
+              onCityClick={handleCityClick}
+              onCountryClick={handleCountryClick}
+            />
+          )}
+          {currentView === 'location-photos' && selectedLocation && (
+            <LocationPhotosView
+              location={selectedLocation}
+              onBack={handleBackToPlaces}
+              onPhotoClick={handleLocationPhotoClick}
+            />
           )}
         </div>
       </div>

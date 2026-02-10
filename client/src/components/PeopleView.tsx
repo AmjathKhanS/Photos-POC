@@ -1,4 +1,4 @@
-import { useFaces } from '../hooks/useFaces';
+import { useFacesContext } from '../contexts/FacesContext';
 import { PersonCard } from './PersonCard';
 import type { Person } from '../types/face';
 
@@ -15,7 +15,7 @@ export function PeopleView({ onPersonClick, onShowDuplicates }: PeopleViewProps)
     loading,
     startScan,
     runClustering,
-  } = useFaces();
+  } = useFacesContext();
 
   const isScanning = scanStatus.status === 'scanning';
   const progress = scanStatus.total > 0

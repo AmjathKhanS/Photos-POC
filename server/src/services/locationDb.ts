@@ -279,3 +279,37 @@ export function hasLocation(filename: string): boolean {
 
   return stmt.get(filename) !== undefined;
 }
+
+/**
+ * Get photos by city
+ */
+export function getPhotosByCity(city: string, country: string): PhotoLocation[] {
+  if (!tablesExist()) return [];
+
+  const database = getDb();
+
+  const stmt = database.prepare(`
+    SELECT * FROM photo_locations
+    WHERE city = ? AND country = ?
+    ORDER BY created_at DESC
+  `);
+
+  return stmt.all(city, country) as PhotoLocation[];
+}
+
+/**
+ * Get photos by country
+ */
+export function getPhotosByCountry(country: string): PhotoLocation[] {
+  if (!tablesExist()) return [];
+
+  const database = getDb();
+
+  const stmt = database.prepare(`
+    SELECT * FROM photo_locations
+    WHERE country = ?
+    ORDER BY created_at DESC
+  `);
+
+  return stmt.all(country) as PhotoLocation[];
+}

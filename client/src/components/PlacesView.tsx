@@ -1,54 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useLocationContext } from '../contexts/LocationContext';
 
-interface City {
-  city: string;
-  country: string;
-  count: number;
-  avg_lat: number;
-  avg_lon: number;
+interface PlacesViewProps {
+  onCityClick: (city: string, country: string, count: number) => void;
+  onCountryClick: (country: string, count: number) => void;
 }
 
-interface Country {
-  country: string;
-  country_code: string;
-  count: number;
-}
-
-export const PlacesView: React.FC = () => {
-  const [cities, setCities] = useState<City[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalWithLocation, setTotalWithLocation] = useState(0);
-
-  useEffect(() => {
-    fetchLocationData();
-  }, []);
-
-  const fetchLocationData = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch location count
-      const countRes = await fetch('/api/locations/count');
-      const countData = await countRes.json();
-      setTotalWithLocation(countData.count);
-
-      // Fetch cities
-      const citiesRes = await fetch('/api/locations/cities');
-      const citiesData = await citiesRes.json();
-      setCities(citiesData);
-
-      // Fetch countries
-      const countriesRes = await fetch('/api/locations/countries');
-      const countriesData = await countriesRes.json();
-      setCountries(countriesData);
-
-    } catch (error) {
-      console.error('Error fetching location data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+export const PlacesView: React.FC<PlacesViewProps> = ({ onCityClick, onCountryClick }) => {
+  const { cities, countries, totalWithLocation, loading, refetch } = useLocationContext();
 
   if (loading) {
     return (
@@ -86,6 +45,14 @@ export const PlacesView: React.FC = () => {
             {totalWithLocation} photos with GPS coordinates
           </p>
         </div>
+        <button
+          className="refresh-button"
+          onClick={refetch}
+          disabled={loading}
+          title="Refresh places"
+        >
+          <span>{loading ? '⟳' : '↻'}</span>
+        </button>
       </div>
 
       {/* Countries Section */}
@@ -96,7 +63,11 @@ export const PlacesView: React.FC = () => {
           </h3>
           <div className="places-grid">
             {countries.map((country) => (
-              <div key={country.country_code} className="place-card">
+              <div
+                key={country.country_code}
+                className="place-card clickable"
+                onClick={() => onCountryClick(country.country, country.count)}
+              >
                 <div className="place-flag">
                   {country.country_code && (
                     <span style={{ fontSize: '32px' }}>
@@ -124,7 +95,11 @@ export const PlacesView: React.FC = () => {
           </h3>
           <div className="places-grid">
             {cities.map((city) => (
-              <div key={`${city.city}-${city.country}`} className="place-card">
+              <div
+                key={`${city.city}-${city.country}`}
+                className="place-card clickable"
+                onClick={() => onCityClick(city.city, city.country, city.count)}
+              >
                 <div className="place-icon">📍</div>
                 <div className="place-info">
                   <div className="place-name">{city.city}</div>

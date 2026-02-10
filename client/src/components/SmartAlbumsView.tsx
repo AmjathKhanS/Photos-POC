@@ -1,16 +1,5 @@
-import React, { useState, useEffect } from 'react';
-
-interface SmartAlbum {
-  id: number;
-  title: string;
-  description: string | null;
-  cover_photo_filename: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  photo_count: number;
-  avg_similarity: number | null;
-  created_at: string;
-}
+import React from 'react';
+import { useSmartAlbumsContext, type SmartAlbum } from '../contexts/SmartAlbumsContext';
 
 interface SmartAlbumsViewProps {
   onAlbumClick: (album: SmartAlbum) => void;
@@ -21,61 +10,20 @@ export const SmartAlbumsView: React.FC<SmartAlbumsViewProps> = ({
   onAlbumClick,
   onGenerateAlbums,
 }) => {
-  const [albums, setAlbums] = useState<SmartAlbum[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-
-  const loadAlbums = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('http://localhost:3002/api/smart-albums');
-      const data = await response.json();
-
-      if (data.success) {
-        setAlbums(data.albums);
-      } else {
-        setError(data.error || 'Failed to load albums');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load albums');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { albums, loading, error, generating, refetch, generateAlbums } = useSmartAlbumsContext();
 
   const handleGenerateAlbums = async () => {
     try {
-      setGenerating(true);
-      setError(null);
-
-      const response = await fetch('http://localhost:3002/api/smart-albums/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          epsVisual: 0.25,      // Visual similarity threshold (pure cosine distance)
-          minSamples: 2,         // Minimum 2 photos per album
-          maxWindowDays: 7,      // Maximum 7-day span per album
-          maxGapDays: 2,         // Maximum 2-day gap between photos
-          replaceExisting: true,
-        }),
+      await generateAlbums({
+        epsVisual: 0.25,      // Visual similarity threshold (pure cosine distance)
+        minSamples: 2,         // Minimum 2 photos per album
+        maxWindowDays: 7,      // Maximum 7-day span per album
+        maxGapDays: 2,         // Maximum 2-day gap between photos
+        replaceExisting: true,
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        await loadAlbums();
-        onGenerateAlbums();
-      } else {
-        setError(data.error || 'Failed to generate albums');
-      }
+      onGenerateAlbums();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate albums');
-    } finally {
-      setGenerating(false);
+      console.error('Failed to generate albums:', err);
     }
   };
 
@@ -101,10 +49,6 @@ export const SmartAlbumsView: React.FC<SmartAlbumsViewProps> = ({
     return `${formatDate(start)} - ${formatDate(end)}`;
   };
 
-  useEffect(() => {
-    loadAlbums();
-  }, []);
-
   if (loading) {
     return (
       <div className="smart-albums-loading">
@@ -119,7 +63,7 @@ export const SmartAlbumsView: React.FC<SmartAlbumsViewProps> = ({
       <div className="smart-albums-error">
         <h3>⚠️ Error</h3>
         <p>{error}</p>
-        <button onClick={loadAlbums} className="retry-button">
+        <button onClick={refetch} className="retry-button">
           Retry
         </button>
       </div>
@@ -136,6 +80,14 @@ export const SmartAlbumsView: React.FC<SmartAlbumsViewProps> = ({
           </p>
         </div>
         <div className="header-actions">
+          <button
+            className="refresh-button"
+            onClick={refetch}
+            disabled={loading}
+            title="Refresh albums"
+          >
+            <span>{loading ? '⟳' : '↻'}</span>
+          </button>
           <button
             onClick={handleGenerateAlbums}
             disabled={generating}

@@ -1,24 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { Photo } from '../types/photo';
 
-interface UsePhotosResult {
+interface PhotosContextValue {
   photos: Photo[];
   loading: boolean;
   error: string | null;
   hasMore: boolean;
   total: number;
+  page: number;
   loadMore: () => void;
   refetch: () => void;
+  isInitialized: boolean;
 }
 
-export function usePhotos(enabled: boolean = true): UsePhotosResult {
+const PhotosContext = createContext<PhotosContextValue | undefined>(undefined);
+
+export function PhotosProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
-  const [hasFetched, setHasFetched] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const fetchPhotos = useCallback(async (pageNum: number, append: boolean = false) => {
     try {
@@ -37,7 +41,7 @@ export function usePhotos(enabled: boolean = true): UsePhotosResult {
       }
       setHasMore(data.hasMore);
       setTotal(data.total);
-      setHasFetched(true);
+      setIsInitialized(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -45,12 +49,13 @@ export function usePhotos(enabled: boolean = true): UsePhotosResult {
     }
   }, []);
 
-  // Only fetch once when enabled and haven't fetched yet
+  // Initial fetch on mount - only run when isInitialized changes
   useEffect(() => {
-    if (enabled && !hasFetched) {
+    if (!isInitialized) {
       fetchPhotos(1, false);
     }
-  }, [enabled, hasFetched, fetchPhotos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized]);
 
   const loadMore = useCallback(() => {
     if (!loading && hasMore) {
@@ -63,9 +68,33 @@ export function usePhotos(enabled: boolean = true): UsePhotosResult {
   const refetch = useCallback(() => {
     setPage(1);
     setPhotos([]);
-    setHasFetched(false);
+    setIsInitialized(false);
     fetchPhotos(1, false);
   }, [fetchPhotos]);
 
-  return { photos, loading, error, hasMore, total, loadMore, refetch };
+  return (
+    <PhotosContext.Provider
+      value={{
+        photos,
+        loading,
+        error,
+        hasMore,
+        total,
+        page,
+        loadMore,
+        refetch,
+        isInitialized,
+      }}
+    >
+      {children}
+    </PhotosContext.Provider>
+  );
+}
+
+export function usePhotosContext() {
+  const context = useContext(PhotosContext);
+  if (context === undefined) {
+    throw new Error('usePhotosContext must be used within a PhotosProvider');
+  }
+  return context;
 }

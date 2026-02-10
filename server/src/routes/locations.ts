@@ -65,6 +65,36 @@ router.get('/countries', (req, res) => {
 });
 
 /**
+ * GET /api/locations/city/:city/:country
+ * Get all photos from a specific city
+ */
+router.get('/city/:city/:country', (req, res) => {
+  try {
+    const { city, country } = req.params;
+    const photos = locationService.getPhotosByCity(city, country);
+    res.json(photos);
+  } catch (error: any) {
+    console.error('Error getting photos by city:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/locations/country/:country
+ * Get all photos from a specific country
+ */
+router.get('/country/:country', (req, res) => {
+  try {
+    const { country } = req.params;
+    const photos = locationService.getPhotosByCountry(country);
+    res.json(photos);
+  } catch (error: any) {
+    console.error('Error getting photos by country:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/locations/:filename
  * Get location data for a specific photo
  */
