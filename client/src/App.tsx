@@ -12,6 +12,7 @@ import { MemoryDetailView } from './components/MemoryDetailView';
 import { SmartAlbumsView } from './components/SmartAlbumsView';
 import { AlbumDetailView } from './components/AlbumDetailView';
 import { ScreenshotsView } from './components/ScreenshotsView';
+import { PlacesView } from './components/PlacesView';
 import { IndexingStatusBar } from './components/IndexingStatusBar';
 import { Sidebar } from './components/Sidebar';
 import { SearchBar, SearchMode } from './components/SearchBar';
@@ -24,7 +25,7 @@ import type { Photo } from './types/photo';
 import type { Memory } from './types/memory';
 import './styles/index.css';
 
-type View = 'photos' | 'people' | 'person-photos' | 'duplicates' | 'memories' | 'memory-detail' | 'smart-albums' | 'album-detail' | 'screenshots';
+type View = 'photos' | 'places' | 'people' | 'person-photos' | 'duplicates' | 'memories' | 'memory-detail' | 'smart-albums' | 'album-detail' | 'screenshots';
 
 // Minimal photo type for lightbox compatibility
 interface LightboxPhoto {
@@ -53,6 +54,15 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
+  const [locationCount, setLocationCount] = useState<number>(0);
+
+  // Fetch location count on mount
+  useEffect(() => {
+    fetch('/api/locations/count')
+      .then(res => res.json())
+      .then(data => setLocationCount(data.count))
+      .catch(err => console.error('Error fetching location count:', err));
+  }, []);
 
   // Handle search
   const handleSearch = (query: string, mode: SearchMode) => {
@@ -314,6 +324,7 @@ export default function App() {
           setIsMobileMenuOpen(false);
         }}
         photoCount={total}
+        locationCount={locationCount}
         isMobileMenuOpen={isMobileMenuOpen}
       />
 
@@ -431,6 +442,9 @@ export default function App() {
               photos={photos}
               onPhotoClick={handleScreenshotPhotoClick}
             />
+          )}
+          {currentView === 'places' && (
+            <PlacesView />
           )}
         </div>
       </div>

@@ -13,6 +13,7 @@ import semanticSearchRouter from './routes/semanticSearch.js';
 import smartAlbumsRouter from './routes/smartAlbums.js';
 import documentIntelligenceRouter from './routes/documentIntelligence.js';
 import indexingRouter from './routes/indexing.js';
+import locationsRouter from './routes/locations.js';
 import { generateDailyMemories, generateWeeklyMemories, generateMonthlyMemories } from './services/memoryService.js';
 import { initAutoIndexing } from './services/autoIndexService.js';
 
@@ -113,6 +114,7 @@ app.use('/api/semantic-search', semanticSearchRouter);
 app.use('/api/smart-albums', smartAlbumsRouter);
 app.use('/api/documents', documentIntelligenceRouter);
 app.use('/api/indexing', indexingRouter);
+app.use('/api/locations', locationsRouter);
 
 // Health check endpoint with detailed status
 app.get('/health', async (req, res) => {

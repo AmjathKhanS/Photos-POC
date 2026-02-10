@@ -6,6 +6,8 @@
 import * as photoService from './photoService.js';
 import * as semanticSearchService from './semanticSearchService.js';
 import * as semanticDb from './semanticSearchDb.js';
+import * as locationService from './locationService.js';
+import path from 'path';
 
 interface AutoIndexOptions {
   batchSize?: number;           // Photos per batch (default: 10)
@@ -237,6 +239,23 @@ async function processBatch(filenames: string[], maxRetries: number): Promise<{
           await sleep(1000);
         }
       }
+    }
+
+    // Extract GPS data (runs regardless of indexing success)
+    try {
+      const photoPath = path.join(process.env.PHOTOS_DIR || '', filename);
+      const gpsData = await locationService.extractGPSFromPhoto(photoPath);
+
+      if (gpsData) {
+        await locationService.savePhotoLocation({
+          photo_filename: filename,
+          ...gpsData,
+        });
+        console.log(`   📍 GPS extracted: ${gpsData.latitude.toFixed(4)}, ${gpsData.longitude.toFixed(4)}`);
+      }
+    } catch (gpsError) {
+      // GPS extraction errors don't count as indexing failures
+      // Just log silently for debugging
     }
 
     if (success) {

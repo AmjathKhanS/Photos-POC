@@ -4,12 +4,14 @@ interface SidebarProps {
   currentView: string;
   onViewChange: (view: string) => void;
   photoCount: number;
+  locationCount?: number;
   isMobileMenuOpen?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, photoCount, isMobileMenuOpen = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, photoCount, locationCount, isMobileMenuOpen = false }) => {
   const navItems = [
     { id: 'photos', label: 'Photos', icon: '📷', count: photoCount },
+    { id: 'places', label: 'Places', icon: '📍', count: locationCount ?? null },
     { id: 'screenshots', label: 'Screenshots & Snips', icon: '📸', count: null },
     { id: 'smart-albums', label: 'Smart Albums', icon: '🎨', count: null },
     { id: 'memories', label: 'Memories', icon: '🎭', count: null },

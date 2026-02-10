@@ -2887,3 +2887,82 @@ body {
     max-width: none;
   }
 }
+
+/* Places View */
+.places-view {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.places-section {
+  margin-bottom: 32px;
+}
+
+.places-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.place-card {
+  background-color: #2d2f31;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid #3c4043;
+}
+
+.place-card:hover {
+  background-color: #35373a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.place-flag {
+  font-size: 32px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.place-icon {
+  font-size: 32px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.place-info {
+  flex: 1;
+}
+
+.place-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #e8eaed;
+  margin-bottom: 4px;
+}
+
+.place-country {
+  font-size: 13px;
+  color: #9aa0a6;
+  margin-bottom: 4px;
+}
+
+.place-count {
+  font-size: 13px;
+  color: #8ab4f8;
+}
+
+@media (max-width: 768px) {
+  .places-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .places-view {
+    padding: 16px;
+  }
+}

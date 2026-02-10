@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const PYTHON_SERVICE_PATH = path.join(__dirname, '../../face-service');
 // Use SQLite database for clustering (ONNX works with SQLite)
-const DB_PATH = path.join(__dirname, '../../data/faces.db');
+const DB_PATH = process.env.SQLITE_DB_PATH || path.join(__dirname, '../../data/faces.db');
 
 // Use ONNX virtual environment Python (optimized for 512-D embeddings)
 const VENV_PYTHON = path.join(__dirname, '../../../venv_onnx/Scripts/python.exe');
