@@ -54,10 +54,17 @@ router.get('/stats', (req, res) => {
 
 // ============ Face Data ============
 
-// GET /api/faces - Get all faces
+// GET /api/faces - Get all faces (optionally filtered by personId)
 router.get('/', (req, res) => {
   try {
-    const faces = getAllFaces();
+    const personId = req.query.personId ? parseInt(req.query.personId as string) : null;
+    let faces = getAllFaces();
+
+    // Filter by personId if provided
+    if (personId !== null) {
+      faces = faces.filter(face => face.person_id === personId);
+    }
+
     res.json(faces);
   } catch (error) {
     console.error('Error fetching faces:', error);
@@ -77,17 +84,38 @@ router.get('/photo/:filename', (req, res) => {
   }
 });
 
-// GET /api/faces/:faceId/thumbnail - Get face thumbnail
+// GET /api/faces/:faceId/thumbnail - Get face thumbnail (cached, optimized)
 router.get('/:faceId/thumbnail', async (req, res) => {
   try {
     const faceId = parseInt(req.params.faceId);
     const { buffer, contentType } = await getFaceThumbnail(faceId);
+
+    // Aggressive caching headers for performance
     res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Cache-Control', 'public, max-age=2592000, immutable'); // 30 days, immutable
+    res.set('ETag', `"face-${faceId}"`);
+
+    // Handle conditional requests
+    if (req.headers['if-none-match'] === `"face-${faceId}"`) {
+      return res.status(304).end();
+    }
+
     res.send(buffer);
   } catch (error) {
     console.error('Error generating face thumbnail:', error);
     res.status(500).json({ error: 'Failed to generate face thumbnail' });
+  }
+});
+
+// GET /api/faces/cache/stats - Get thumbnail cache statistics
+router.get('/cache/stats', async (req, res) => {
+  try {
+    const { getCacheStats } = await import('../services/thumbnailCache.js');
+    const stats = getCacheStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting cache stats:', error);
+    res.status(500).json({ error: 'Failed to get cache stats' });
   }
 });
 

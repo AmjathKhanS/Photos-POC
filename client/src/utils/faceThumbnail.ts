@@ -1,6 +1,18 @@
 // Cache for face thumbnail URLs to avoid re-requesting
 const thumbnailCache = new Map<number, string>();
 
+/**
+ * Get thumbnail URL directly from face ID (optimized - no extra API calls)
+ */
+export function getFaceThumbnailUrlDirect(faceId: number | null): string | null {
+  if (!faceId) return null;
+  return `/api/faces/${faceId}/thumbnail`;
+}
+
+/**
+ * Get thumbnail URL from person ID (legacy - requires extra API call)
+ * Use getFaceThumbnailUrlDirect when possible
+ */
 export async function getFaceThumbnailUrl(
   personId: number,
   _size: number = 150 // Not used, backend generates thumbnails at fixed size
@@ -16,7 +28,7 @@ export async function getFaceThumbnailUrl(
     if (!personResponse.ok) return null;
 
     const person = await personResponse.json();
-    const faceId = person.representative_face_id;
+    const faceId = person.representative_face_id || person.thumbnail_face_id;
 
     if (!faceId) {
       // If no representative face, get first face from person's faces

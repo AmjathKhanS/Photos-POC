@@ -208,7 +208,15 @@ export function getAllFaces(): Face[] {
   });
 }
 
-export async function getFaceThumbnail(faceId: number): Promise<{ buffer: Buffer; contentType: string }> {
+export async function getFaceThumbnail(faceId: number, size: number = 150): Promise<{ buffer: Buffer; contentType: string }> {
+  // Check cache first (memory -> disk)
+  const { getThumbnailFromCache, saveThumbnailToCache } = await import('./thumbnailCache.js');
+  const cached = await getThumbnailFromCache(faceId, size);
+  if (cached) {
+    return cached;
+  }
+
+  // Generate thumbnail if not in cache
   const face = getFaceById(faceId);
 
   if (!face) {
@@ -253,7 +261,7 @@ export async function getFaceThumbnail(faceId: number): Promise<{ buffer: Buffer
   const width = Math.min(imgWidth - left, bbox.right - bbox.left + padding * 2);
   const height = Math.min(imgHeight - top, bbox.bottom - bbox.top + padding * 2);
 
-  // Crop face from image
+  // Crop face from image with optimized settings
   const buffer = await sharp(imageBuffer)
     .extract({
       left: Math.round(left),
@@ -261,11 +269,23 @@ export async function getFaceThumbnail(faceId: number): Promise<{ buffer: Buffer
       width: Math.round(width),
       height: Math.round(height)
     })
-    .resize(150, 150, { fit: 'cover' })
-    .jpeg({ quality: 85 })
+    .resize(size, size, {
+      fit: 'cover',
+      kernel: 'lanczos3' // Better quality
+    })
+    .jpeg({
+      quality: 85,
+      progressive: true, // Enable progressive JPEG for faster loading
+      mozjpeg: true // Use mozjpeg for smaller file sizes
+    })
     .toBuffer();
 
-  return { buffer, contentType: 'image/jpeg' };
+  const result = { buffer, contentType: 'image/jpeg' };
+
+  // Save to cache for next time
+  await saveThumbnailToCache(faceId, buffer, result.contentType, size);
+
+  return result;
 }
 
 export function getTotalStats(): { totalPhotos: number; processedPhotos: number; totalFaces: number; totalPersons: number } {

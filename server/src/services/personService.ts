@@ -27,10 +27,19 @@ export function getAllPersons(): Person[] {
   const faces = getAllFacesFromDb();
 
   return persons.map(person => {
-    const faceCount = faces.filter(f => f.person_id === person.id).length;
+    const personFaces = faces.filter(f => f.person_id === person.id);
+    const faceCount = personFaces.length;
+
+    // Use representative_face_id if available, otherwise use first face
+    let thumbnailFaceId = person.representative_face_id;
+    if (!thumbnailFaceId && personFaces.length > 0) {
+      thumbnailFaceId = personFaces[0].id;
+    }
+
     return {
       ...person,
-      face_count: faceCount
+      face_count: faceCount,
+      thumbnail_face_id: thumbnailFaceId // Add for direct thumbnail access
     };
   }).sort((a, b) => a.id - b.id);
 }

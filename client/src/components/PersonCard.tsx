@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Person } from '../types/face';
-import { getFaceThumbnailUrl } from '../utils/faceThumbnail';
+import { getFaceThumbnailUrlDirect } from '../utils/faceThumbnail';
 
 interface PersonCardProps {
   person: Person;
@@ -8,51 +8,79 @@ interface PersonCardProps {
 }
 
 export function PersonCard({ person, onClick }: PersonCardProps) {
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
+  // Get thumbnail URL directly from person data (no API call needed!)
+  const thumbnailUrl = getFaceThumbnailUrlDirect(
+    (person as any).thumbnail_face_id || person.representative_face_id
+  );
+
+  // Lazy loading with IntersectionObserver
   useEffect(() => {
-    let mounted = true;
+    if (!cardRef.current) return;
 
-    async function loadThumbnail() {
-      setLoading(true);
-      try {
-        const url = await getFaceThumbnailUrl(person.id);
-        if (mounted) {
-          setThumbnailUrl(url);
-        }
-      } catch (error) {
-        console.error('Error loading thumbnail:', error);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        rootMargin: '50px', // Start loading 50px before visible
+        threshold: 0.01
       }
-    }
+    );
 
-    loadThumbnail();
+    observer.observe(cardRef.current);
 
     return () => {
-      mounted = false;
+      observer.disconnect();
     };
-  }, [person.id]);
+  }, []);
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const showPlaceholder = !thumbnailUrl || imageError || (!imageLoaded && isVisible);
 
   return (
-    <div className="person-card" onClick={onClick}>
+    <div ref={cardRef} className="person-card" onClick={onClick}>
       <div className="person-avatar">
-        {loading ? (
+        {showPlaceholder ? (
           <div className="person-avatar-placeholder">
-            <div className="placeholder-spinner"></div>
+            {!isVisible ? (
+              <div className="placeholder-shimmer"></div>
+            ) : imageError || !thumbnailUrl ? (
+              person.name.charAt(0).toUpperCase()
+            ) : (
+              <div className="placeholder-spinner"></div>
+            )}
           </div>
-        ) : thumbnailUrl ? (
+        ) : null}
+
+        {thumbnailUrl && isVisible && (
           <img
             src={thumbnailUrl}
             alt={person.name}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            style={{
+              opacity: imageLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out'
+            }}
+            loading="lazy"
           />
-        ) : (
-          <div className="person-avatar-placeholder">
-            {person.name.charAt(0).toUpperCase()}
-          </div>
         )}
       </div>
       <div className="person-info">

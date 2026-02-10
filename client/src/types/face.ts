@@ -18,6 +18,7 @@ export interface Person {
   id: number;
   name: string;
   representative_face_id: number | null;
+  thumbnail_face_id?: number | null; // Computed field for quick thumbnail access
   face_count: number;
   created_at: string;
 }
