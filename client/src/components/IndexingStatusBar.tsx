@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { fetchWithRetry } from '../utils/fetchWithRetry';
 
 interface IndexingStatus {
   isRunning: boolean;
@@ -18,7 +19,7 @@ export const IndexingStatusBar: React.FC = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await fetch('/api/indexing/status');
+        const response = await fetchWithRetry('/api/indexing/status');
         const data = await response.json();
         setStatus(data);
         return data;
@@ -39,7 +40,7 @@ export const IndexingStatusBar: React.FC = () => {
 
       if (currentStatus.isRunning && !interval) {
         // Start polling when indexing starts
-        interval = setInterval(fetchStatus, 3000); // Reduced frequency: 3 seconds
+        interval = setInterval(fetchStatus, 10000); // Poll every 10 seconds during indexing
       } else if (!currentStatus.isRunning && interval) {
         // Stop polling when indexing stops
         clearInterval(interval);
@@ -47,9 +48,9 @@ export const IndexingStatusBar: React.FC = () => {
       }
     };
 
-    // Check every 10 seconds if we should start polling
+    // Check every 30 seconds if we should start polling
     checkAndPoll();
-    const checkInterval = setInterval(checkAndPoll, 10000);
+    const checkInterval = setInterval(checkAndPoll, 30000);
 
     return () => {
       if (interval) clearInterval(interval);
@@ -59,7 +60,7 @@ export const IndexingStatusBar: React.FC = () => {
 
   const handlePause = async () => {
     try {
-      await fetch('/api/indexing/pause', { method: 'POST' });
+      await fetchWithRetry('/api/indexing/pause', { method: 'POST' });
       setIsPaused(true);
       setStatus({ isRunning: false });
     } catch (error) {
@@ -69,7 +70,7 @@ export const IndexingStatusBar: React.FC = () => {
 
   const handleResume = async () => {
     try {
-      await fetch('/api/indexing/resume', { method: 'POST' });
+      await fetchWithRetry('/api/indexing/resume', { method: 'POST' });
       setIsPaused(false);
     } catch (error) {
       console.error('Error resuming indexing:', error);

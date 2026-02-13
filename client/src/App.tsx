@@ -332,9 +332,7 @@ export default function App() {
     setLightboxIndex(index);
   };
 
-  if (loading && photos.length === 0) {
-    return <LoadingSpinner />;
-  }
+  // No loading spinner - render grid immediately for instant display
 
   if (error) {
     return (

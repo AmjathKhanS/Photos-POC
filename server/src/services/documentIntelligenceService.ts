@@ -71,7 +71,9 @@ async function callDocumentService(action: string, filename?: string): Promise<a
       args.push('--filename', filename);
     }
 
-    const process = spawn(PYTHON_CMD, args);
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
+    const process = spawn(PYTHON_CMD, args, spawnOptions);
 
     let stdout = '';
     let stderr = '';

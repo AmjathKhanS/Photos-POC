@@ -13,6 +13,7 @@ interface FacesContextValue {
   deletePerson: (personId: number) => Promise<void>;
   assignFaceToPerson: (faceId: number, personId: number) => Promise<void>;
   refetch: () => void;
+  fetchIfNeeded: () => void;
   isInitialized: boolean;
 }
 
@@ -78,7 +79,7 @@ export function FacesProvider({ children }: { children: ReactNode }) {
         fetchPersons();
         fetchStats();
       }
-    }, 1000);
+    }, 10000); // Poll every 10 seconds instead of 1 second to avoid slowing down face detection
   }, [fetchScanStatus, fetchPersons, fetchStats]);
 
   const startScan = async () => {
@@ -150,21 +151,30 @@ export function FacesProvider({ children }: { children: ReactNode }) {
     await fetchPersons();
   };
 
-  // Initial fetch on mount - only run when isInitialized changes
+  // DON'T fetch on mount - wait for explicit call
+  // This prevents unnecessary API calls when user is on other tabs
   useEffect(() => {
-    if (!isInitialized) {
-      fetchPersons();
-      fetchStats();
-      fetchScanStatus();
-    }
-
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized]);
+  }, []);
+
+  const refetch = useCallback(() => {
+    setIsInitialized(false);
+    fetchPersons();
+    fetchStats();
+    fetchScanStatus();
+  }, [fetchPersons, fetchStats, fetchScanStatus]);
+
+  const fetchIfNeeded = useCallback(() => {
+    if (!isInitialized && !loading) {
+      fetchPersons();
+      fetchStats();
+      fetchScanStatus();
+    }
+  }, [isInitialized, loading, fetchPersons, fetchStats, fetchScanStatus]);
 
   return (
     <FacesContext.Provider
@@ -179,7 +189,8 @@ export function FacesProvider({ children }: { children: ReactNode }) {
         renamePerson,
         deletePerson,
         assignFaceToPerson,
-        refetch: fetchPersons,
+        refetch,
+        fetchIfNeeded,
         isInitialized,
       }}
     >

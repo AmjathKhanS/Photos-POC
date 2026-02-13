@@ -63,7 +63,9 @@ interface SearchResult {
  */
 async function callPythonService(args: string[]): Promise<any> {
   return new Promise((resolve, reject) => {
-    const process = spawn(PYTHON_CMD, [AI_SERVICE_PATH, ...args]);
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
+    const process = spawn(PYTHON_CMD, [AI_SERVICE_PATH, ...args], spawnOptions);
 
     let stdout = '';
     let stderr = '';

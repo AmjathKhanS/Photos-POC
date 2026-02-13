@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import { rateLimit } from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import cron from 'node-cron';
@@ -16,6 +17,8 @@ import indexingRouter from './routes/indexing.js';
 import locationsRouter from './routes/locations.js';
 import { generateDailyMemories, generateWeeklyMemories, generateMonthlyMemories } from './services/memoryService.js';
 import { initAutoIndexing } from './services/autoIndexService.js';
+import { preloadAllThumbnails } from './services/thumbnailPreloader.js';
+import { startPeriodicPhotoCheck } from './services/photoService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,31 +72,44 @@ app.use(cors({
   credentials: true
 }));
 
+// Response compression (gzip/deflate)
+app.use(compression({
+  filter: (req, res) => {
+    // Don't compress images (already compressed)
+    if (req.path.includes('/thumbnail/') || req.path.includes('/full/')) {
+      return false;
+    }
+    // Compress everything else
+    return compression.filter(req, res);
+  },
+  level: 6 // Balance between speed and compression ratio
+}));
+
 // Rate limiting - protect against abuse
 const ENABLE_RATE_LIMITING = process.env.ENABLE_RATE_LIMITING !== 'false';
 
 if (ENABLE_RATE_LIMITING) {
-  // General API rate limit
+  // General API rate limit - ultra-high for local file access
   const apiLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes default
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 100 requests per window
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100000'), // 100k requests per window for local files
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
   });
 
-  // Stricter limits for expensive operations
+  // Stricter limits for expensive operations (relaxed for development)
   const expensiveOpLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // Only 10 requests per hour
+    windowMs: 15 * 60 * 1000, // 15 minutes (was 1 hour)
+    max: NODE_ENV === 'production' ? 10 : 10000, // 10k for dev, 10 for production
     message: 'Too many face scanning requests, please try again later',
   });
 
-  // Speed limiter - slow down repeated requests
+  // Speed limiter - disabled for local file access (no delay)
   const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    delayAfter: 50, // Allow 50 requests per 15 minutes at full speed
-    delayMs: (hits) => hits * 100, // Add 100ms delay per request above 50
+    delayAfter: 100000, // Allow 100k requests at full speed
+    delayMs: () => 0, // No delay for local files
   });
 
   app.use('/api', apiLimiter);
@@ -101,7 +117,7 @@ if (ENABLE_RATE_LIMITING) {
   app.use('/api/faces/scan', expensiveOpLimiter);
   app.use('/api/faces/cluster', expensiveOpLimiter);
 
-  console.log('🛡️  Rate limiting enabled');
+  console.log('🛡️  Rate limiting enabled (relaxed for local files)');
 }
 
 app.use(express.json({ limit: '10mb' }));
@@ -195,10 +211,27 @@ console.log(`  - Monthly highlights: ${CRON_MONTHLY}`);
 
 // ============ Start Server ============
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`\n✅ Server running on http://${HOST}:${PORT}`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/health\n`);
 
   // Initialize auto-indexing in background
   initAutoIndexing();
+
+  // Pre-generate all thumbnails in background (async, doesn't block)
+  setTimeout(() => {
+    preloadAllThumbnails().catch(err =>
+      console.error('Thumbnail preload error:', err)
+    );
+  }, 5000); // Wait 5 seconds after server starts
+
+  // Start periodic check for new photos (every 2 minutes)
+  setTimeout(() => {
+    startPeriodicPhotoCheck(2 * 60 * 1000);
+  }, 10000); // Wait 10 seconds after server starts
 });
+
+// Enable HTTP keep-alive for persistent connections - optimized for local file access
+server.keepAliveTimeout = 300000; // 5 minutes - ultra-long keep-alive for local files
+server.headersTimeout = 301000; // Slightly longer than keepAliveTimeout
+server.maxHeadersCount = 10000; // Allow 10k concurrent requests for instant thumbnail loading

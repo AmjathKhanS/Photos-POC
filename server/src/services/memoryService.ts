@@ -73,12 +73,14 @@ export async function assessPhotoQuality(): Promise<{ message: string; error?: s
   console.log('Starting photo quality assessment...');
 
   return new Promise((resolve) => {
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
     const process = spawn(PYTHON_CMD, [
       pythonScript,
       '--photos-dir', PHOTOS_DIR,
       '--db-path', DB_PATH,
       '--action', 'analyze-all'
-    ]);
+    ], spawnOptions);
 
     let outputData = '';
     let errorData = '';
@@ -128,12 +130,14 @@ export async function extractPhotoMetadata(): Promise<{ message: string; error?:
   console.log('Starting photo metadata extraction...');
 
   return new Promise((resolve) => {
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
     const process = spawn(PYTHON_CMD, [
       pythonScript,
       '--photos-dir', PHOTOS_DIR,
       '--db-path', DB_PATH,
       '--action', 'extract-all'
-    ]);
+    ], spawnOptions);
 
     let outputData = '';
     let errorData = '';
@@ -177,12 +181,14 @@ async function runMemoryGenerator(action: string, args: string[] = []): Promise<
   console.log(`Running memory generator: ${action}`);
 
   return new Promise((resolve) => {
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
     const process = spawn(PYTHON_CMD, [
       pythonScript,
       '--db-path', DB_PATH,
       '--action', action,
       ...args
-    ]);
+    ], spawnOptions);
 
     let outputData = '';
     let errorData = '';

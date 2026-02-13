@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useFacesContext } from '../contexts/FacesContext';
 import { PersonCard } from './PersonCard';
 import type { Person } from '../types/face';
@@ -15,7 +16,13 @@ export function PeopleView({ onPersonClick, onShowDuplicates }: PeopleViewProps)
     loading,
     startScan,
     runClustering,
+    fetchIfNeeded,
   } = useFacesContext();
+
+  // Fetch face data when this view is shown
+  useEffect(() => {
+    fetchIfNeeded();
+  }, [fetchIfNeeded]);
 
   const isScanning = scanStatus.status === 'scanning';
   const progress = scanStatus.total > 0

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSmartAlbumsContext, type SmartAlbum } from '../contexts/SmartAlbumsContext';
 
 interface SmartAlbumsViewProps {
@@ -10,7 +10,12 @@ export const SmartAlbumsView: React.FC<SmartAlbumsViewProps> = ({
   onAlbumClick,
   onGenerateAlbums,
 }) => {
-  const { albums, loading, error, generating, refetch, generateAlbums } = useSmartAlbumsContext();
+  const { albums, loading, error, generating, refetch, generateAlbums, fetchIfNeeded } = useSmartAlbumsContext();
+
+  // Fetch albums data when this view is shown
+  useEffect(() => {
+    fetchIfNeeded();
+  }, [fetchIfNeeded]);
 
   const handleGenerateAlbums = async () => {
     try {

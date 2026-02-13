@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, memo, useEffect } from 'react';
 import type { Photo } from '../types/photo';
 
 interface PhotoCardProps {
@@ -8,41 +8,30 @@ interface PhotoCardProps {
   selectionMode?: boolean;
 }
 
-export function PhotoCard({ photo, onClick, isSelected = false, selectionMode = false }: PhotoCardProps) {
-  const [loaded, setLoaded] = useState(false);
+export const PhotoCard = memo(function PhotoCard({ photo, onClick, isSelected = false, selectionMode = false }: PhotoCardProps) {
   const [error, setError] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-            observer.disconnect();
-          }
-        });
-      },
-      {
-        rootMargin: '50px',
-        threshold: 0.01
+  const handleImageError = () => {
+    // Retry immediately up to 3 times
+    if (retryCount < 3) {
+      setRetryCount(prev => prev + 1);
+      setError(false);
+      // Force immediate image reload
+      if (imgRef.current) {
+        imgRef.current.src = photo.thumbnailUrl + '?retry=' + (retryCount + 1);
       }
-    );
-
-    if (cardRef.current) {
-      observer.observe(cardRef.current);
+    } else {
+      setError(true);
     }
+  };
 
-    return () => observer.disconnect();
-  }, []);
-
-  const handleImageLoad = () => {
-    setLoaded(true);
-    if (imgRef.current) {
-      imgRef.current.decode().catch(() => {});
-    }
+  // Prefetch full image on hover for instant lightbox
+  const handleMouseEnter = () => {
+    const img = new Image();
+    img.src = photo.fullUrl;
   };
 
   return (
@@ -50,34 +39,25 @@ export function PhotoCard({ photo, onClick, isSelected = false, selectionMode = 
       ref={cardRef}
       className={`photo-card ${isSelected ? 'selected' : ''}`}
       onClick={onClick}
+      onMouseEnter={handleMouseEnter}
     >
       {selectionMode && (
         <div className={`photo-card-checkbox ${isSelected ? 'checked' : ''}`} />
       )}
 
-      {!loaded && !error && (
-        <div className="photo-card-placeholder">
-          <div className="placeholder-spinner"></div>
-        </div>
-      )}
       {error ? (
         <div className="photo-card-error">
-          <span>Failed to load</span>
+          <span>Failed</span>
         </div>
       ) : (
-        isVisible && (
-          <img
-            ref={imgRef}
-            src={photo.thumbnailUrl}
-            alt={photo.filename}
-            onLoad={handleImageLoad}
-            onError={() => setError(true)}
-            style={{ opacity: loaded ? 1 : 0 }}
-            decoding="async"
-            fetchpriority="low"
-          />
-        )
+        <img
+          ref={imgRef}
+          src={photo.thumbnailUrl}
+          alt={photo.filename}
+          onError={handleImageError}
+          decoding="async"
+        />
       )}
     </div>
   );
-}
+});

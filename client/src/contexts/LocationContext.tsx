@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 interface City {
   city: string;
@@ -21,6 +21,7 @@ interface LocationContextValue {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  fetchIfNeeded: () => void;
   isInitialized: boolean;
 }
 
@@ -65,18 +66,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Initial fetch on mount - only run when isInitialized changes
-  useEffect(() => {
-    if (!isInitialized) {
-      fetchLocationData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized]);
+  // DON'T fetch on mount - wait for explicit call
+  // This prevents unnecessary API calls when user is on other tabs
 
   const refetch = useCallback(() => {
     setIsInitialized(false);
     fetchLocationData();
   }, [fetchLocationData]);
+
+  const fetchIfNeeded = useCallback(() => {
+    if (!isInitialized && !loading) {
+      fetchLocationData();
+    }
+  }, [isInitialized, loading, fetchLocationData]);
 
   return (
     <LocationContext.Provider
@@ -87,6 +89,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         refetch,
+        fetchIfNeeded,
         isInitialized,
       }}
     >

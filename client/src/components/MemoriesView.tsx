@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMemoriesContext } from '../contexts/MemoriesContext';
 import { MemoryCard } from './MemoryCard';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -9,8 +9,13 @@ interface MemoriesViewProps {
 }
 
 export function MemoriesView({ onMemoryClick }: MemoriesViewProps) {
-  const { memories, loading, error, dismissMemory, generateDaily, refetch } = useMemoriesContext();
+  const { memories, loading, error, dismissMemory, generateDaily, refetch, fetchIfNeeded } = useMemoriesContext();
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Fetch memories data when this view is shown
+  useEffect(() => {
+    fetchIfNeeded();
+  }, [fetchIfNeeded]);
 
   const handleGenerateDaily = async () => {
     if (confirm('Generate new "On This Day" memories? This may take a moment.')) {

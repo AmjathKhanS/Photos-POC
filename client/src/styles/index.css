@@ -43,6 +43,10 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 4px;
   padding: 4px;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 @media (min-width: 768px) {
@@ -65,9 +69,15 @@ body {
   aspect-ratio: 1;
   overflow: hidden;
   cursor: pointer;
-  background-color: #3c4043;
+  background-color: #2a2b2e;
   border-radius: 4px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
+  contain: layout style paint;
+}
+
+.photo-card {
+  background: #2a2b2e; /* Solid background, no loading states */
 }
 
 .photo-card:hover {
@@ -80,7 +90,11 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: opacity 0.3s ease;
+  will-change: opacity;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .photo-card-placeholder,
@@ -225,6 +239,25 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+.lightbox-thumbnail-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.lightbox-thumbnail-placeholder img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .lightbox-image-container img {
@@ -1823,11 +1856,7 @@ body {
 /* ============================================
    Image Loading Performance Optimizations
    ============================================ */
-.photo-card img {
-  image-rendering: -webkit-optimize-contrast;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
+/* Removed duplicate rule - see photo-card img above */
 
 /* ============================================
    Smart Albums Styling

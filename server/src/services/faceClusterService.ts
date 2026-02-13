@@ -37,13 +37,15 @@ export function runFaceClustering(eps: number = 0.5, minSamples: number = 2): Pr
     // Use ONNX clustering (optimized for 512-D embeddings with cosine similarity)
     const pythonScript = path.join(PYTHON_SERVICE_PATH, 'face_clustering_onnx.py');
 
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
     const process = spawn(PYTHON_CMD, [
       toWindowsPath(pythonScript),
       '--db-path', toWindowsPath(DB_PATH),
       '--eps', eps.toString(),
       '--min-samples', minSamples.toString(),
       '--metric', 'cosine'  // Use cosine similarity for ONNX embeddings
-    ]);
+    ], spawnOptions);
 
     let output = '';
     let errorOutput = '';

@@ -44,6 +44,8 @@ async function callClusteringService(
   maxGapDays: number = 2
 ): Promise<ClusteringResult> {
   return new Promise((resolve, reject) => {
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
     const process = spawn(PYTHON_CMD, [
       CLUSTERING_SERVICE_PATH,
       '--db-path', DB_PATH,
@@ -51,7 +53,7 @@ async function callClusteringService(
       '--min-samples', minSamples.toString(),
       '--max-window-days', maxWindowDays.toString(),
       '--max-gap-days', maxGapDays.toString(),
-    ]);
+    ], spawnOptions);
 
     let stdout = '';
     let stderr = '';

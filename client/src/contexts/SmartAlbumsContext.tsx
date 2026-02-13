@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 export interface SmartAlbum {
   id: number;
@@ -18,6 +18,7 @@ interface SmartAlbumsContextValue {
   error: string | null;
   generating: boolean;
   refetch: () => void;
+  fetchIfNeeded: () => void;
   generateAlbums: (params?: GenerateAlbumsParams) => Promise<void>;
   isInitialized: boolean;
 }
@@ -96,18 +97,19 @@ export function SmartAlbumsProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchAlbums]);
 
-  // Initial fetch on mount - only run when isInitialized changes
-  useEffect(() => {
-    if (!isInitialized) {
-      fetchAlbums();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized]);
+  // DON'T fetch on mount - wait for explicit call
+  // This prevents unnecessary API calls when user is on other tabs
 
   const refetch = useCallback(() => {
     setIsInitialized(false);
     fetchAlbums();
   }, [fetchAlbums]);
+
+  const fetchIfNeeded = useCallback(() => {
+    if (!isInitialized && !loading) {
+      fetchAlbums();
+    }
+  }, [isInitialized, loading, fetchAlbums]);
 
   return (
     <SmartAlbumsContext.Provider
@@ -117,6 +119,7 @@ export function SmartAlbumsProvider({ children }: { children: ReactNode }) {
         error,
         generating,
         refetch,
+        fetchIfNeeded,
         generateAlbums,
         isInitialized,
       }}

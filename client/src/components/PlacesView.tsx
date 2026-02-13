@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocationContext } from '../contexts/LocationContext';
 
 interface PlacesViewProps {
@@ -7,7 +7,12 @@ interface PlacesViewProps {
 }
 
 export const PlacesView: React.FC<PlacesViewProps> = ({ onCityClick, onCountryClick }) => {
-  const { cities, countries, totalWithLocation, loading, refetch } = useLocationContext();
+  const { cities, countries, totalWithLocation, loading, refetch, fetchIfNeeded } = useLocationContext();
+
+  // Fetch location data when this view is shown
+  useEffect(() => {
+    fetchIfNeeded();
+  }, [fetchIfNeeded]);
 
   if (loading) {
     return (

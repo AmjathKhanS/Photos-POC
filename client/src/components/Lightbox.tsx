@@ -16,6 +16,8 @@ export function Lightbox({
   onNavigate
 }: LightboxProps) {
   const [loading, setLoading] = useState(true);
+  const [showThumbnail, setShowThumbnail] = useState(true);
+  const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const currentPhoto = photos[currentIndex];
 
@@ -40,7 +42,30 @@ export function Lightbox({
 
   useEffect(() => {
     setLoading(true);
+    setShowThumbnail(true);
+    setThumbnailLoaded(false);
   }, [currentIndex]);
+
+  // Prefetch adjacent images for instant navigation
+  useEffect(() => {
+    const prefetchImages: string[] = [];
+
+    // Prefetch previous image
+    if (currentIndex > 0) {
+      prefetchImages.push(photos[currentIndex - 1].fullUrl);
+    }
+
+    // Prefetch next image
+    if (currentIndex < photos.length - 1) {
+      prefetchImages.push(photos[currentIndex + 1].fullUrl);
+    }
+
+    // Prefetch in background
+    prefetchImages.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
+  }, [currentIndex, photos]);
 
   // Prevent body scroll when lightbox is open
   useEffect(() => {
@@ -52,6 +77,12 @@ export function Lightbox({
 
   const handleImageLoad = () => {
     setLoading(false);
+    // Fade out thumbnail once full image is loaded
+    setTimeout(() => setShowThumbnail(false), 100);
+  };
+
+  const handleThumbnailLoad = () => {
+    setThumbnailLoaded(true);
   };
 
   return (
@@ -76,18 +107,36 @@ export function Lightbox({
 
         {/* Image container */}
         <div className="lightbox-image-container">
-          {loading && (
-            <div className="lightbox-loading">
-              <div className="spinner"></div>
+          {/* Show thumbnail as instant placeholder while full image loads */}
+          {showThumbnail && (
+            <div className="lightbox-thumbnail-placeholder">
+              <img
+                src={currentPhoto.thumbnailUrl}
+                alt={currentPhoto.filename}
+                onLoad={handleThumbnailLoad}
+                style={{
+                  filter: loading ? 'blur(8px)' : 'blur(0px)',
+                  opacity: thumbnailLoaded ? 1 : 0,
+                  transition: 'opacity 0.05s, filter 0.1s',
+                  transform: 'scale(1.05)' // Slight scale to hide blur edges
+                }}
+              />
             </div>
           )}
+
+          {/* Full resolution image */}
           <div className="lightbox-image-wrapper">
             <img
               ref={imageRef}
               src={currentPhoto.fullUrl}
               alt={currentPhoto.filename}
               onLoad={handleImageLoad}
-              style={{ opacity: loading ? 0 : 1 }}
+              style={{
+                opacity: loading ? 0 : 1,
+                transition: 'opacity 0.15s ease-in'
+              }}
+              decoding="async"
+              loading="eager"
             />
           </div>
         </div>

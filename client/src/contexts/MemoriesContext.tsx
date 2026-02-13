@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import type { Memory } from '../types/memory';
 
 const API_BASE = '/api/memories';
@@ -8,6 +8,7 @@ interface MemoriesContextValue {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  fetchIfNeeded: () => void;
   dismissMemory: (memoryId: number) => Promise<void>;
   deleteMemory: (memoryId: number) => Promise<void>;
   generateDaily: () => Promise<void>;
@@ -97,18 +98,19 @@ export function MemoriesProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchMemories]);
 
-  // Initial fetch on mount - only run when isInitialized changes
-  useEffect(() => {
-    if (!isInitialized) {
-      fetchMemories();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized]);
+  // DON'T fetch on mount - wait for explicit call
+  // This prevents unnecessary API calls when user is on other tabs
 
   const refetch = useCallback(() => {
     setIsInitialized(false);
     fetchMemories();
   }, [fetchMemories]);
+
+  const fetchIfNeeded = useCallback(() => {
+    if (!isInitialized && !loading) {
+      fetchMemories();
+    }
+  }, [isInitialized, loading, fetchMemories]);
 
   return (
     <MemoriesContext.Provider
@@ -117,6 +119,7 @@ export function MemoriesProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         refetch,
+        fetchIfNeeded,
         dismissMemory,
         deleteMemory,
         generateDaily,

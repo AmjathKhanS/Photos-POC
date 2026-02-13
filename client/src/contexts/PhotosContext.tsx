@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { Photo } from '../types/photo';
+import { fetchWithRetry } from '../utils/fetchWithRetry';
 
 interface PhotosContextValue {
   photos: Photo[];
@@ -24,30 +25,147 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
   const [total, setTotal] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Prefetch full images for current page (gentle caching for instant lightbox)
+  const prefetchFullImages = useCallback((photos: Photo[]) => {
+    // Only prefetch first 2 photos to minimize bandwidth and avoid lag
+    setTimeout(() => {
+      photos.slice(0, 2).forEach((photo, index) => {
+        setTimeout(() => {
+          const img = new Image();
+          img.src = photo.fullUrl;
+        }, index * 500); // Stagger by 500ms each
+      });
+    }, 2000); // Wait 2s after thumbnails load to avoid lag
+
+    // Skip prefetching remaining photos - let hover handle it
+    // This prevents lag during scrolling and pagination
+  }, []);
+
+  // Ultra-aggressive: Prefetch ALL remaining pages immediately - fire and forget
+  const prefetchAllRemainingPages = useCallback((totalPhotos: number, currentPage: number) => {
+    const pageSize = 120;
+    const totalPages = Math.ceil(totalPhotos / pageSize);
+    const remainingPages = totalPages - currentPage;
+
+    if (remainingPages <= 0) return;
+
+    console.log(`[PhotosContext] 🌐 INSTANT PREFETCH: Firing ALL ${remainingPages} remaining pages (${remainingPages * pageSize} photos) simultaneously...`);
+
+    // Fire ALL requests instantly - don't wait for anything
+    for (let pageNum = currentPage + 1; pageNum <= totalPages; pageNum++) {
+      // Fire and forget - maximum parallelization
+      (async () => {
+        try {
+          // Use direct fetch for maximum speed - no retry overhead
+          const response = await fetch(`/api/photos?page=${pageNum}&limit=${pageSize}`);
+          if (!response.ok) return;
+
+          const data = await response.json();
+
+          // Preload all thumbnails immediately
+          data.photos.forEach((photo: Photo) => {
+            const img = new Image();
+            img.src = photo.thumbnailUrl;
+          });
+
+          if (pageNum % 10 === 0) {
+            console.log(`[PhotosContext] ✅ Prefetched up to page ${pageNum}`);
+          }
+        } catch (err) {
+          // Silent fail for prefetch
+        }
+      })();
+    }
+
+    console.log(`[PhotosContext] 🎉 ALL ${totalPhotos} thumbnail requests fired instantly!`);
+  }, []);
+
+  // Prefetch multiple pages ahead for seamless scrolling
+  const prefetchNextPages = useCallback(async (startPage: number, numPages: number = 100) => {
+    console.log(`[PhotosContext] 🚀 INSTANT Prefetching pages ${startPage} to ${startPage + numPages - 1}`);
+
+    // Fire ALL requests instantly without waiting - maximum parallelization
+    for (let i = 0; i < numPages; i++) {
+      const pageNum = startPage + i;
+
+      // Don't await - fire and forget for maximum speed
+      (async () => {
+        try {
+          // Use direct fetch for speed - no retry delays needed for local files
+          const response = await fetch(`/api/photos?page=${pageNum}&limit=120`);
+          if (!response.ok) return;
+
+          const data = await response.json();
+
+          // Preload all thumbnails immediately (browser handles concurrency)
+          data.photos.forEach((photo: Photo) => {
+            const img = new Image();
+            img.src = photo.thumbnailUrl;
+          });
+
+          console.log(`[PhotosContext] ✅ Prefetched page ${pageNum} (${data.photos.length} photos)`);
+        } catch (err) {
+          // Silent fail - prefetching is non-critical
+        }
+      })();
+    }
+  }, []);
+
   const fetchPhotos = useCallback(async (pageNum: number, append: boolean = false) => {
     try {
+      console.log(`[PhotosContext] Fetching page ${pageNum}, append=${append}`);
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/photos?page=${pageNum}&limit=50`);
+
+      const response = await fetchWithRetry(`/api/photos?page=${pageNum}&limit=120`);
       if (!response.ok) {
         throw new Error('Failed to fetch photos');
       }
       const data = await response.json();
+      console.log(`[PhotosContext] Received ${data.photos.length} photos for page ${pageNum}`);
 
+      // Immediately start preloading thumbnails for current page BEFORE setting state
+      data.photos.forEach((photo: Photo) => {
+        const img = new Image();
+        img.src = photo.thumbnailUrl;
+      });
+
+      // Update state immediately - don't wait for images to load
       if (append) {
-        setPhotos(prev => [...prev, ...data.photos]);
+        setPhotos(prev => {
+          const newPhotos = [...prev, ...data.photos];
+          console.log(`[PhotosContext] Total photos after append: ${newPhotos.length}`);
+          return newPhotos;
+        });
+        // Prefetch full images for newly added photos
+        prefetchFullImages(data.photos);
       } else {
         setPhotos(data.photos);
+        console.log(`[PhotosContext] Set initial photos: ${data.photos.length}`);
+        // Prefetch full images for current page
+        prefetchFullImages(data.photos);
       }
       setHasMore(data.hasMore);
       setTotal(data.total);
       setIsInitialized(true);
+      setLoading(false);
+
+      // ALWAYS prefetch ALL remaining pages - instant firing
+      if (data.hasMore) {
+        // Fire prefetch for ALL remaining pages regardless of which page we're on
+        const totalPages = Math.ceil(data.total / 120);
+        const remainingPages = totalPages - pageNum;
+
+        if (remainingPages > 0) {
+          console.log(`[PhotosContext] 🚀 Firing instant prefetch for ${remainingPages} remaining pages`);
+          prefetchAllRemainingPages(data.total, pageNum);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
       setLoading(false);
     }
-  }, []);
+  }, [prefetchFullImages, prefetchAllRemainingPages]);
 
   // Initial fetch on mount - only run when isInitialized changes
   useEffect(() => {
@@ -60,8 +178,11 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
   const loadMore = useCallback(() => {
     if (!loading && hasMore) {
       const nextPage = page + 1;
+      console.log(`[PhotosContext] Loading page ${nextPage}...`);
       setPage(nextPage);
       fetchPhotos(nextPage, true);
+    } else {
+      console.log(`[PhotosContext] Cannot load more: loading=${loading}, hasMore=${hasMore}`);
     }
   }, [loading, hasMore, page, fetchPhotos]);
 

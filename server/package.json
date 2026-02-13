@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node check-wsl-env.js && tsx watch --env-file=../.env src/index.ts",
-    "dev:wsl": "SQLITE_DB_PATH=$HOME/photo-viewer-db/faces.db tsx watch --env-file=../.env src/index.ts",
+    "dev": "node check-wsl-env.js && npx tsx watch --env-file=../.env src/index.ts",
+    "dev:wsl": "SQLITE_DB_PATH=$HOME/photo-viewer-db/faces.db npx tsx watch --env-file=../.env src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "exiftool-vendored": "^35.6.0",
     "express": "^4.18.2",
@@ -30,7 +31,7 @@
     "@types/mime-types": "^2.1.4",
     "@types/node-cron": "^3.0.11",
     "@types/sql.js": "^1.4.9",
-    "tsx": "^4.7.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.3"
   }
 }

@@ -114,13 +114,15 @@ export async function scanAllPhotos(): Promise<{ message: string; error?: string
 
   let stderrOutput = '';
 
+  // On Windows, .bat files need to be executed with shell: true
+  const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
   scanProcess = spawn(PYTHON_CMD, [
     pythonScript,
     '--photos-dir', PHOTOS_DIR,
     '--db-path', DB_PATH,
     '--action', 'scan',
     '--min-confidence', '0.95'  // Filter out blurred/low-quality faces
-  ]);
+  ], spawnOptions);
 
   scanProcess.stdout?.on('data', (data) => {
     try {

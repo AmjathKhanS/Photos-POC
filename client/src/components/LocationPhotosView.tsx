@@ -59,6 +59,8 @@ export function LocationPhotosView({ location, onBack, onPhotoClick }: LocationP
           thumbnailUrl: `${baseUrl}/api/photos/thumbnail/${encodeURIComponent(loc.photo_filename)}`,
           fullUrl: `${baseUrl}/api/photos/full/${encodeURIComponent(loc.photo_filename)}`,
           modifiedAt: '',
+          mimeType: 'image/jpeg',
+          size: 0,
         };
       });
 

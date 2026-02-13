@@ -88,8 +88,8 @@ export async function startAutoIndexing(options: AutoIndexOptions = {}): Promise
   }
 
   const {
-    batchSize = 10,
-    delayBetweenBatches = 2000,
+    batchSize = 10,  // Process 10 photos per batch
+    delayBetweenBatches = 500,  // Shorter delay for faster processing
     maxRetries = 2,
     onProgress,
     onComplete,

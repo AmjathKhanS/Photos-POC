@@ -58,11 +58,13 @@ export async function findDuplicatePersons(threshold: number = 0.85): Promise<Du
     let stdoutData = '';
     let stderrData = '';
 
+    // On Windows, .bat files need to be executed with shell: true
+    const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
     const process = spawn(PYTHON_CMD, [
       toWindowsPath(pythonScript),
       '--db-path', toWindowsPath(DB_PATH),
       '--threshold', threshold.toString()
-    ]);
+    ], spawnOptions);
 
     process.stdout?.on('data', (data) => {
       stdoutData += data.toString();
