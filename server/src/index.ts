@@ -19,6 +19,7 @@ import { generateDailyMemories, generateWeeklyMemories, generateMonthlyMemories 
 import { initAutoIndexing } from './services/autoIndexService.js';
 import { preloadAllThumbnails } from './services/thumbnailPreloader.js';
 import { startPeriodicPhotoCheck } from './services/photoService.js';
+import { initLocationTables } from './services/locationDb.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,23 +93,41 @@ if (ENABLE_RATE_LIMITING) {
   // General API rate limit - ultra-high for local file access
   const apiLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes default
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100000'), // 100k requests per window for local files
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000000'), // 1M requests per window for local files
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
+    // Skip rate limiting for frequently polled endpoints and status checks
+    skip: (req) => {
+      const exemptPaths = [
+        '/api/smart-albums/generate',
+        '/api/faces/scan',
+        '/api/faces/cluster',
+        '/api/faces/scan/status',
+        '/api/faces/persons',
+        '/api/faces/stats',
+        '/api/semantic-search/index',
+        '/api/indexing/status',
+        '/api/photos',
+        '/api/memories',
+        '/api/locations',
+        '/api/smart-albums'
+      ];
+      return exemptPaths.some(path => req.path.includes(path));
+    }
   });
 
   // Stricter limits for expensive operations (relaxed for development)
   const expensiveOpLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes (was 1 hour)
-    max: NODE_ENV === 'production' ? 10 : 10000, // 10k for dev, 10 for production
-    message: 'Too many face scanning requests, please try again later',
+    max: NODE_ENV === 'production' ? 100 : 100000, // 100k for dev, 100 for production
+    message: 'Too many requests, please try again later',
   });
 
   // Speed limiter - disabled for local file access (no delay)
   const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    delayAfter: 100000, // Allow 100k requests at full speed
+    delayAfter: 1000000, // Allow 1M requests at full speed
     delayMs: () => 0, // No delay for local files
   });
 
@@ -116,6 +135,7 @@ if (ENABLE_RATE_LIMITING) {
   app.use('/api', speedLimiter);
   app.use('/api/faces/scan', expensiveOpLimiter);
   app.use('/api/faces/cluster', expensiveOpLimiter);
+  app.use('/api/smart-albums/generate', expensiveOpLimiter);
 
   console.log('🛡️  Rate limiting enabled (relaxed for local files)');
 }
@@ -214,6 +234,9 @@ console.log(`  - Monthly highlights: ${CRON_MONTHLY}`);
 const server = app.listen(PORT, HOST, () => {
   console.log(`\n✅ Server running on http://${HOST}:${PORT}`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/health\n`);
+
+  // Initialize location tables if they don't exist
+  initLocationTables();
 
   // Initialize auto-indexing in background
   initAutoIndexing();

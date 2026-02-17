@@ -4,7 +4,6 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import os from 'os';
 import sharp from 'sharp';
-import heicConvert from 'heic-convert';
 import { fileURLToPath } from 'url';
 import {
   getAllFaces as getAllFacesFromDb,
@@ -34,6 +33,7 @@ if (!process.env.PHOTOS_DIR) {
 const PYTHON_SERVICE_PATH = process.env.FACE_SERVICE_PATH || path.join(__dirname, '../../face-service');
 const PHOTOS_DIR = process.env.PHOTOS_DIR;
 const DB_PATH = process.env.SQLITE_DB_PATH || path.join(process.env.DB_DIR || path.join(__dirname, '../../data'), 'faces.db');
+const MIN_FACE_CONFIDENCE = parseFloat(process.env.MIN_FACE_CONFIDENCE || '0.6');
 
 // Python executable configuration
 const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python3';
@@ -121,7 +121,7 @@ export async function scanAllPhotos(): Promise<{ message: string; error?: string
     '--photos-dir', PHOTOS_DIR,
     '--db-path', DB_PATH,
     '--action', 'scan',
-    '--min-confidence', '0.95'  // Filter out blurred/low-quality faces
+    '--min-confidence', MIN_FACE_CONFIDENCE.toString()
   ], spawnOptions);
 
   scanProcess.stdout?.on('data', (data) => {
@@ -235,24 +235,13 @@ export async function getFaceThumbnail(faceId: number, size: number = 150): Prom
     throw new Error('Image file not found');
   }
 
-  // Convert HEIC to JPEG if needed
-  let imageBuffer: Buffer;
-  const ext = path.extname(face.photo_filename).toLowerCase();
+  // sharp can handle HEIC files directly on Windows - no manual conversion needed!
+  // IMPORTANT: Auto-rotate image based on EXIF orientation first
+  // This ensures bounding boxes match the oriented view (especially for HEIC from iPhones)
+  const orientedImage = sharp(imagePath).rotate(); // Auto-rotate based on EXIF
 
-  if (ext === '.heic') {
-    const inputBuffer = await fsPromises.readFile(imagePath);
-    const outputBuffer = await heicConvert({
-      buffer: inputBuffer as any,
-      format: 'JPEG',
-      quality: 0.9
-    });
-    imageBuffer = Buffer.from(outputBuffer);
-  } else {
-    imageBuffer = await fsPromises.readFile(imagePath);
-  }
-
-  // Get image metadata to handle bounds
-  const metadata = await sharp(imageBuffer).metadata();
+  // Get metadata AFTER rotation to get correct dimensions
+  const metadata = await orientedImage.metadata();
   const imgWidth = metadata.width || 1000;
   const imgHeight = metadata.height || 1000;
 
@@ -263,8 +252,10 @@ export async function getFaceThumbnail(faceId: number, size: number = 150): Prom
   const width = Math.min(imgWidth - left, bbox.right - bbox.left + padding * 2);
   const height = Math.min(imgHeight - top, bbox.bottom - bbox.top + padding * 2);
 
-  // Crop face from image with optimized settings
-  const buffer = await sharp(imageBuffer)
+  // Crop face from oriented image
+  // sharp handles HEIC->JPEG conversion automatically
+  const buffer = await sharp(imagePath)
+    .rotate() // Apply EXIF orientation
     .extract({
       left: Math.round(left),
       top: Math.round(top),

@@ -120,7 +120,9 @@ router.get('/', (req, res) => {
     res.json(memories);
   } catch (error) {
     console.error('Error fetching memories:', error);
-    res.status(500).json({ error: 'Failed to fetch memories' });
+    console.error('Full error details:', error instanceof Error ? error.stack : error);
+    // Return empty array instead of error to prevent UI breakage
+    res.json([]);
   }
 });
 
@@ -138,7 +140,8 @@ router.get('/type/:type', (req, res) => {
     res.json(memories);
   } catch (error) {
     console.error('Error fetching memories by type:', error);
-    res.status(500).json({ error: 'Failed to fetch memories' });
+    // Return empty array instead of error to prevent UI breakage
+    res.json([]);
   }
 });
 

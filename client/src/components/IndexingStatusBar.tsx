@@ -32,29 +32,13 @@ export const IndexingStatusBar: React.FC = () => {
     // Initial fetch
     fetchStatus();
 
-    // Only poll if indexing is running
-    let interval: NodeJS.Timeout | null = null;
-
-    const checkAndPoll = async () => {
-      const currentStatus = await fetchStatus();
-
-      if (currentStatus.isRunning && !interval) {
-        // Start polling when indexing starts
-        interval = setInterval(fetchStatus, 10000); // Poll every 10 seconds during indexing
-      } else if (!currentStatus.isRunning && interval) {
-        // Stop polling when indexing stops
-        clearInterval(interval);
-        interval = null;
-      }
-    };
-
-    // Check every 30 seconds if we should start polling
-    checkAndPoll();
-    const checkInterval = setInterval(checkAndPoll, 30000);
+    // Poll every 15 seconds (increased from 10 to reduce load)
+    const interval = setInterval(async () => {
+      await fetchStatus();
+    }, 15000);
 
     return () => {
-      if (interval) clearInterval(interval);
-      clearInterval(checkInterval);
+      clearInterval(interval);
     };
   }, []);
 

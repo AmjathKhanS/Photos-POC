@@ -34,6 +34,11 @@ export const PhotoCard = memo(function PhotoCard({ photo, onClick, isSelected = 
     img.src = photo.fullUrl;
   };
 
+  // Completely remove failed images from grid - no empty space
+  if (error) {
+    return null;
+  }
+
   return (
     <div
       ref={cardRef}
@@ -45,19 +50,13 @@ export const PhotoCard = memo(function PhotoCard({ photo, onClick, isSelected = 
         <div className={`photo-card-checkbox ${isSelected ? 'checked' : ''}`} />
       )}
 
-      {error ? (
-        <div className="photo-card-error">
-          <span>Failed</span>
-        </div>
-      ) : (
-        <img
-          ref={imgRef}
-          src={photo.thumbnailUrl}
-          alt={photo.filename}
-          onError={handleImageError}
-          decoding="async"
-        />
-      )}
+      <img
+        ref={imgRef}
+        src={photo.thumbnailUrl}
+        alt={photo.filename}
+        onError={handleImageError}
+        decoding="async"
+      />
     </div>
   );
 });

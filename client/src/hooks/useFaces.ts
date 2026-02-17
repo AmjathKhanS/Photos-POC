@@ -73,7 +73,7 @@ export function useFaces(): UseFacesResult {
         fetchPersons();
         fetchStats();
       }
-    }, 1000);
+    }, 10000); // Poll every 10 seconds instead of 1 second to reduce server load
   }, [fetchScanStatus, fetchPersons, fetchStats]);
 
   const startScan = async () => {
@@ -94,10 +94,11 @@ export function useFaces(): UseFacesResult {
   const runClustering = async () => {
     try {
       setLoading(true);
+      // Don't send parameters - use optimal values from server .env
       const response = await fetch('/api/faces/cluster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eps: 0.3, minSamples: 2 })
+        body: JSON.stringify({})
       });
       if (response.ok) {
         await fetchPersons();

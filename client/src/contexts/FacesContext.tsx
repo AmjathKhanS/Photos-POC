@@ -100,10 +100,11 @@ export function FacesProvider({ children }: { children: ReactNode }) {
   const runClustering = async () => {
     try {
       setLoading(true);
+      // Don't send parameters - use optimal values from server .env
       const response = await fetch('/api/faces/cluster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eps: 0.3, minSamples: 2 })
+        body: JSON.stringify({})
       });
       if (response.ok) {
         await fetchPersons();

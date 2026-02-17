@@ -6,7 +6,7 @@ const router = Router();
 // GET /api/indexing/status - Get current indexing status
 router.get('/status', async (req, res) => {
   try {
-    const status = getAutoIndexStatus();
+    const status = await getAutoIndexStatus();
     res.json(status || { isRunning: false });
   } catch (error) {
     console.error('Error getting indexing status:', error);

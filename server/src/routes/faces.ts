@@ -88,6 +88,11 @@ router.get('/photo/:filename', (req, res) => {
 router.get('/:faceId/thumbnail', async (req, res) => {
   try {
     const faceId = parseInt(req.params.faceId);
+
+    if (isNaN(faceId)) {
+      return res.status(400).json({ error: 'Invalid face ID' });
+    }
+
     const { buffer, contentType } = await getFaceThumbnail(faceId);
 
     // Aggressive caching headers for performance
@@ -101,9 +106,16 @@ router.get('/:faceId/thumbnail', async (req, res) => {
     }
 
     res.send(buffer);
-  } catch (error) {
-    console.error('Error generating face thumbnail:', error);
-    res.status(500).json({ error: 'Failed to generate face thumbnail' });
+  } catch (error: any) {
+    const faceId = parseInt(req.params.faceId);
+    console.error(`Error generating thumbnail for face ${faceId}:`, error.message);
+
+    // Return appropriate status code based on error
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to generate face thumbnail' });
+    }
   }
 });
 

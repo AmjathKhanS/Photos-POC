@@ -5,6 +5,7 @@
 
 import express from 'express';
 import * as locationService from '../services/locationService.js';
+import { getPhotoByFilename } from '../services/photoService.js';
 
 const router = express.Router();
 
@@ -68,10 +69,15 @@ router.get('/countries', (req, res) => {
  * GET /api/locations/city/:city/:country
  * Get all photos from a specific city
  */
-router.get('/city/:city/:country', (req, res) => {
+router.get('/city/:city/:country', async (req, res) => {
   try {
     const { city, country } = req.params;
-    const photos = locationService.getPhotosByCity(city, country);
+    const locations = locationService.getPhotosByCity(decodeURIComponent(city), decodeURIComponent(country));
+
+    // Convert location data to full photo objects
+    const photoPromises = locations.map(loc => getPhotoByFilename(loc.photo_filename));
+    const photos = (await Promise.all(photoPromises)).filter(p => p !== null);
+
     res.json(photos);
   } catch (error: any) {
     console.error('Error getting photos by city:', error);
@@ -83,10 +89,15 @@ router.get('/city/:city/:country', (req, res) => {
  * GET /api/locations/country/:country
  * Get all photos from a specific country
  */
-router.get('/country/:country', (req, res) => {
+router.get('/country/:country', async (req, res) => {
   try {
     const { country } = req.params;
-    const photos = locationService.getPhotosByCountry(country);
+    const locations = locationService.getPhotosByCountry(decodeURIComponent(country));
+
+    // Convert location data to full photo objects
+    const photoPromises = locations.map(loc => getPhotoByFilename(loc.photo_filename));
+    const photos = (await Promise.all(photoPromises)).filter(p => p !== null);
+
     res.json(photos);
   } catch (error: any) {
     console.error('Error getting photos by country:', error);
@@ -123,6 +134,63 @@ router.delete('/:filename', (req, res) => {
     res.json({ success: true, message: 'Location data deleted' });
   } catch (error: any) {
     console.error('Error deleting photo location:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/locations/enrich
+ * Enrich existing locations with city/country names via reverse geocoding
+ * Query param: force=true to re-enrich all locations
+ */
+router.post('/enrich', async (req, res) => {
+  try {
+    const forceAll = req.query.force === 'true';
+    const locations = locationService.getAllPhotoLocations();
+
+    // Filter locations that don't have city/country data (or force re-enrich all)
+    const locationsToEnrich = forceAll
+      ? locations
+      : locations.filter(loc => !loc.city && !loc.country);
+
+    if (locationsToEnrich.length === 0) {
+      return res.json({
+        success: true,
+        message: 'All locations already have city/country data',
+        enriched: 0,
+        total: locations.length
+      });
+    }
+
+    console.log(`🌍 Enriching ${locationsToEnrich.length} locations with reverse geocoding...`);
+
+    let enriched = 0;
+    for (const location of locationsToEnrich) {
+      try {
+        const enrichedLocation = await locationService.enrichLocationData(location, forceAll);
+
+        // Only update if we got new data (or if forcing, always save)
+        if (forceAll || enrichedLocation.city || enrichedLocation.country) {
+          await locationService.savePhotoLocation(enrichedLocation);
+          enriched++;
+          console.log(`   ✓ ${location.photo_filename}: ${enrichedLocation.city || '(no city)'}, ${enrichedLocation.country || '(no country)'}`);
+        }
+      } catch (error) {
+        console.error(`   ✗ ${location.photo_filename}:`, error);
+      }
+    }
+
+    console.log(`✅ Enriched ${enriched}/${locationsToEnrich.length} locations`);
+
+    res.json({
+      success: true,
+      message: `Successfully enriched ${enriched} locations`,
+      enriched,
+      total: locations.length,
+      skipped: locationsToEnrich.length - enriched
+    });
+  } catch (error: any) {
+    console.error('Error enriching locations:', error);
     res.status(500).json({ error: error.message });
   }
 });

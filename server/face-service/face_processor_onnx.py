@@ -10,7 +10,7 @@ import os
 import sqlite3
 import numpy as np
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 import argparse
 import cv2
 from insightface.app import FaceAnalysis
@@ -132,6 +132,8 @@ class FaceProcessorONNX:
             # Try with PIL for formats like HEIC
             try:
                 pil_img = Image.open(filepath)
+                # IMPORTANT: Apply EXIF orientation (crucial for HEIC from iPhones)
+                pil_img = ImageOps.exif_transpose(pil_img)
                 pil_img = pil_img.convert('RGB')
                 img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
             except Exception as e:

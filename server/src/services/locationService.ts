@@ -5,6 +5,7 @@
 
 import { exiftool } from 'exiftool-vendored';
 import * as locationDb from './locationDb.js';
+import * as reverseGeocoding from './reverseGeocoding.js';
 
 export interface GPSData {
   latitude: number;
@@ -81,6 +82,39 @@ export async function extractGPSFromPhoto(photoPath: string): Promise<GPSData | 
     }
     return null;
   }
+}
+
+/**
+ * Enrich location data with reverse geocoding
+ * @param location - Photo location with GPS coordinates
+ * @param skipCache - Skip cache and force fresh geocoding
+ * @returns Location data enriched with city/country names
+ */
+export async function enrichLocationData(location: PhotoLocation, skipCache: boolean = false): Promise<PhotoLocation> {
+  try {
+    const geocodeResult = await reverseGeocoding.reverseGeocode(
+      location.latitude,
+      location.longitude,
+      skipCache
+    );
+
+    if (geocodeResult) {
+      return {
+        ...location,
+        country: geocodeResult.country,
+        country_code: geocodeResult.country_code,
+        state: geocodeResult.state,
+        city: geocodeResult.city,
+        address: geocodeResult.address,
+        postal_code: geocodeResult.postal_code,
+      };
+    }
+  } catch (error: any) {
+    // If reverse geocoding fails, just return original location
+    console.error(`Error enriching location for ${location.photo_filename}:`, error.message);
+  }
+
+  return location;
 }
 
 /**

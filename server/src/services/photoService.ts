@@ -234,6 +234,42 @@ export function invalidatePhotoListCache() {
   console.log('📸 Photo list cache invalidated');
 }
 
+/**
+ * Create a Photo object from a filename
+ * Used by location routes to return full photo data
+ */
+export async function getPhotoByFilename(filename: string): Promise<Photo | null> {
+  try {
+    const filePath = safePath(PHOTOS_DIR, filename);
+    const stats = await fs.stat(filePath);
+    const ext = path.extname(filename).toLowerCase();
+
+    // Check if file type is supported
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      return null;
+    }
+
+    // Screenshot detection
+    const isScreenshot = SCREENSHOT_PATTERNS.some(pattern => pattern.test(filename));
+
+    return {
+      id: Buffer.from(filename).toString('base64url'),
+      filename,
+      thumbnailUrl: `/api/photos/thumbnail/${encodeURIComponent(filename)}?v=4`,
+      fullUrl: `/api/photos/full/${encodeURIComponent(filename)}`,
+      mimeType: ext === '.heic' ? 'image/jpeg' : (mime.lookup(filename) || 'image/jpeg'),
+      size: stats.size,
+      modifiedAt: stats.mtime.toISOString(),
+      width: undefined,
+      height: undefined,
+      isScreenshot
+    };
+  } catch (error) {
+    console.error(`Error getting photo ${filename}:`, error);
+    return null;
+  }
+}
+
 // Check if new photos have been added without scanning all metadata
 async function checkForNewPhotos(): Promise<boolean> {
   try {

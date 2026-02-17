@@ -15,14 +15,6 @@ interface LocationPhotosViewProps {
   onPhotoClick: (photos: Photo[], index: number) => void;
 }
 
-interface PhotoLocation {
-  photo_filename: string;
-  latitude: number;
-  longitude: number;
-  city?: string;
-  country?: string;
-}
-
 export function LocationPhotosView({ location, onBack, onPhotoClick }: LocationPhotosViewProps) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +29,7 @@ export function LocationPhotosView({ location, onBack, onPhotoClick }: LocationP
       setLoading(true);
       setError(null);
 
-      // Fetch location data
+      // Fetch photos from location endpoint
       let url: string;
       if (location.type === 'city' && location.city) {
         url = `/api/locations/city/${encodeURIComponent(location.city)}/${encodeURIComponent(location.country)}`;
@@ -48,22 +40,7 @@ export function LocationPhotosView({ location, onBack, onPhotoClick }: LocationP
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch location photos');
 
-      const locationData: PhotoLocation[] = await response.json();
-
-      // Convert location data to photo format
-      const photosData: Photo[] = locationData.map((loc) => {
-        const baseUrl = window.location.origin;
-        return {
-          id: loc.photo_filename,
-          filename: loc.photo_filename,
-          thumbnailUrl: `${baseUrl}/api/photos/thumbnail/${encodeURIComponent(loc.photo_filename)}`,
-          fullUrl: `${baseUrl}/api/photos/full/${encodeURIComponent(loc.photo_filename)}`,
-          modifiedAt: '',
-          mimeType: 'image/jpeg',
-          size: 0,
-        };
-      });
-
+      const photosData: Photo[] = await response.json();
       setPhotos(photosData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

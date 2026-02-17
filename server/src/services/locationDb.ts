@@ -34,6 +34,82 @@ function tablesExist(): boolean {
   }
 }
 
+/**
+ * Initialize location tables if they don't exist
+ */
+export function initLocationTables(): void {
+  if (tablesExist()) {
+    return; // Tables already exist
+  }
+
+  console.log('📍 Initializing location tables...');
+
+  const database = getDb();
+
+  try {
+    // Create photo_locations table
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS photo_locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        photo_filename TEXT NOT NULL UNIQUE,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        altitude REAL,
+        gps_timestamp TIMESTAMP,
+        accuracy REAL,
+
+        -- Reverse geocoded data (will be populated later)
+        country TEXT,
+        country_code TEXT,
+        state TEXT,
+        city TEXT,
+        address TEXT,
+        postal_code TEXT,
+
+        -- Clustering (will be populated later)
+        location_cluster_id INTEGER,
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for performance
+    database.exec(`
+      CREATE INDEX IF NOT EXISTS idx_photo_locations_coords
+      ON photo_locations(latitude, longitude);
+
+      CREATE INDEX IF NOT EXISTS idx_photo_locations_city
+      ON photo_locations(city);
+
+      CREATE INDEX IF NOT EXISTS idx_photo_locations_country
+      ON photo_locations(country);
+
+      CREATE INDEX IF NOT EXISTS idx_photo_locations_cluster
+      ON photo_locations(location_cluster_id);
+    `);
+
+    // Create location_clusters table
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS location_clusters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        center_latitude REAL NOT NULL,
+        center_longitude REAL NOT NULL,
+        radius_meters REAL DEFAULT 500,
+        photo_count INTEGER DEFAULT 0,
+        first_visit TIMESTAMP,
+        last_visit TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('✅ Location tables initialized successfully');
+  } catch (error: any) {
+    console.error('❌ Failed to initialize location tables:', error.message);
+  }
+}
+
 export interface PhotoLocation {
   id?: number;
   photo_filename: string;
@@ -113,6 +189,8 @@ export function upsertPhotoLocation(location: PhotoLocation): void {
  * Get location data for a specific photo
  */
 export function getPhotoLocation(filename: string): PhotoLocation | null {
+  if (!tablesExist()) return null;
+
   const database = getDb();
 
   const stmt = database.prepare(`
@@ -231,6 +309,8 @@ export function getPhotosInBounds(
   minLon: number,
   maxLon: number
 ): PhotoLocation[] {
+  if (!tablesExist()) return [];
+
   const database = getDb();
 
   const stmt = database.prepare(`
@@ -246,6 +326,8 @@ export function getPhotosInBounds(
  * Delete location data for a photo
  */
 export function deletePhotoLocation(filename: string): void {
+  if (!tablesExist()) return;
+
   const database = getDb();
 
   const stmt = database.prepare(`
@@ -260,6 +342,8 @@ export function deletePhotoLocation(filename: string): void {
  * Delete all location data (for privacy/cleanup)
  */
 export function deleteAllPhotoLocations(): void {
+  if (!tablesExist()) return;
+
   const database = getDb();
 
   database.prepare('DELETE FROM photo_locations').run();
@@ -269,6 +353,8 @@ export function deleteAllPhotoLocations(): void {
  * Check if photo has location data
  */
 export function hasLocation(filename: string): boolean {
+  if (!tablesExist()) return false;
+
   const database = getDb();
 
   const stmt = database.prepare(`

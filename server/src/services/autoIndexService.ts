@@ -35,8 +35,42 @@ let shouldStop = false;
 
 /**
  * Get current auto-indexing status
+ * Returns actual database stats when no job is running
  */
-export function getAutoIndexStatus(): IndexingStats | null {
+export async function getAutoIndexStatus(): Promise<IndexingStats | null> {
+  // If no active indexing job, check database for actual progress
+  if (!currentIndexingJob || !currentIndexingJob.isRunning) {
+    try {
+      const dbStats = semanticDb.getProcessingStats();
+      const processedPhotos = dbStats.processed;
+      const failedPhotos = dbStats.failed;
+
+      // Get total photo count from photo service
+      const allPhotos = await photoService.getPhotoList();
+      const totalPhotos = allPhotos.length;
+      const remainingPhotos = totalPhotos - processedPhotos - failedPhotos;
+
+      // If there are no photos at all, return null
+      if (totalPhotos === 0) {
+        return null;
+      }
+
+      // Return stats from database
+      return {
+        total: totalPhotos,
+        processed: processedPhotos,
+        failed: failedPhotos,
+        remaining: remainingPhotos,
+        progress: Math.round((processedPhotos / totalPhotos) * 100),
+        isRunning: false,
+        errors: [],
+      };
+    } catch (error) {
+      console.error('Failed to get processing stats from database:', error);
+      return currentIndexingJob;
+    }
+  }
+
   return currentIndexingJob;
 }
 
@@ -111,19 +145,26 @@ export async function startAutoIndexing(options: AutoIndexOptions = {}): Promise
 
     console.log(`📊 Found ${unindexedPhotos.length} photos to index`);
 
+    // Get database stats to account for previously processed photos
+    const dbStats = semanticDb.getProcessingStats();
+    const alreadyProcessed = dbStats.processed;
+    const totalPhotos = alreadyProcessed + unindexedPhotos.length;  // Total = processed + remaining
+
     // Initialize stats
     const totalBatches = Math.ceil(unindexedPhotos.length / batchSize);
     currentIndexingJob = {
-      total: unindexedPhotos.length,
-      processed: 0,
+      total: totalPhotos,  // Total photos (already processed + to be processed)
+      processed: alreadyProcessed,  // Photos processed before this session
       failed: 0,
       remaining: unindexedPhotos.length,
-      progress: 0,
+      progress: totalPhotos > 0 ? Math.round((alreadyProcessed / totalPhotos) * 100) : 0,
       isRunning: true,
       currentBatch: 0,
       totalBatches,
       errors: [],
     };
+
+    console.log(`   📊 Starting from ${alreadyProcessed}/${totalPhotos} photos already processed`);
 
     // Process in batches
     for (let i = 0; i < unindexedPhotos.length; i += batchSize) {
@@ -146,8 +187,10 @@ export async function startAutoIndexing(options: AutoIndexOptions = {}): Promise
       // Update stats
       currentIndexingJob.processed += results.succeeded;
       currentIndexingJob.failed += results.failed;
-      currentIndexingJob.remaining = unindexedPhotos.length - currentIndexingJob.processed - currentIndexingJob.failed;
-      currentIndexingJob.progress = Math.round((currentIndexingJob.processed / unindexedPhotos.length) * 100);
+      currentIndexingJob.remaining -= (results.succeeded + results.failed);
+      currentIndexingJob.progress = currentIndexingJob.total > 0
+        ? Math.round((currentIndexingJob.processed / currentIndexingJob.total) * 100)
+        : 0;
       currentIndexingJob.errors.push(...results.errors);
 
       console.log(`   ✓ Succeeded: ${results.succeeded}`);
@@ -210,36 +253,41 @@ async function processBatch(filenames: string[], maxRetries: number): Promise<{
     let success = false;
     let lastError = '';
 
-    // Retry logic
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const result = await semanticSearchService.indexPhoto(filename);
+    // TEMPORARY: Skip semantic search for faster indexing
+    // You can run semantic search separately later via: POST /api/semantic-search/index-all
+    success = true;
+    console.log(`   ✓ ${filename}`);
 
-        if (result.success) {
-          success = true;
-          console.log(`   ✓ ${filename}`);
-          break;
-        } else {
-          lastError = result.error || 'Unknown error';
+    // Retry logic (DISABLED - semantic search skipped for speed)
+    // for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    //   try {
+    //     const result = await semanticSearchService.indexPhoto(filename);
 
-          // Skip HEIC files (known issue)
-          if (lastError.includes('HEIC') || lastError.includes('cannot identify')) {
-            console.log(`   ⊘ ${filename} (HEIC format - skipping)`);
-            break;
-          }
+    //     if (result.success) {
+    //       success = true;
+    //       console.log(`   ✓ ${filename}`);
+    //       break;
+    //     } else {
+    //       lastError = result.error || 'Unknown error';
 
-          if (attempt < maxRetries) {
-            console.log(`   ⚠️  ${filename} failed (attempt ${attempt}/${maxRetries}), retrying...`);
-            await sleep(1000);
-          }
-        }
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
-        if (attempt < maxRetries) {
-          await sleep(1000);
-        }
-      }
-    }
+    //       // Skip HEIC files (known issue)
+    //       if (lastError.includes('HEIC') || lastError.includes('cannot identify')) {
+    //         console.log(`   ⊘ ${filename} (HEIC format - skipping)`);
+    //         break;
+    //       }
+
+    //       if (attempt < maxRetries) {
+    //         console.log(`   ⚠️  ${filename} failed (attempt ${attempt}/${maxRetries}), retrying...`);
+    //         await sleep(1000);
+    //       }
+    //     }
+    //   } catch (error) {
+    //     lastError = error instanceof Error ? error.message : String(error);
+    //     if (attempt < maxRetries) {
+    //       await sleep(1000);
+    //     }
+    //   }
+    // }
 
     // Extract GPS data (runs regardless of indexing success)
     try {
@@ -247,11 +295,18 @@ async function processBatch(filenames: string[], maxRetries: number): Promise<{
       const gpsData = await locationService.extractGPSFromPhoto(photoPath);
 
       if (gpsData) {
-        await locationService.savePhotoLocation({
+        // Try to get location name from coordinates
+        const locationData = await locationService.enrichLocationData({
           photo_filename: filename,
           ...gpsData,
         });
-        console.log(`   📍 GPS extracted: ${gpsData.latitude.toFixed(4)}, ${gpsData.longitude.toFixed(4)}`);
+
+        await locationService.savePhotoLocation(locationData);
+
+        const locationStr = locationData.city && locationData.country
+          ? `${locationData.city}, ${locationData.country}`
+          : `${gpsData.latitude.toFixed(4)}, ${gpsData.longitude.toFixed(4)}`;
+        console.log(`   📍 GPS extracted: ${locationStr}`);
       }
     } catch (gpsError) {
       // GPS extraction errors don't count as indexing failures

@@ -11,12 +11,18 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Get thumbnail URL directly from person data (no API call needed!)
   const thumbnailUrl = getFaceThumbnailUrlDirect(
     (person as any).thumbnail_face_id || person.representative_face_id
   );
+
+  // Add cache buster for retries
+  const thumbnailUrlWithRetry = thumbnailUrl && retryCount > 0
+    ? `${thumbnailUrl}?retry=${retryCount}`
+    : thumbnailUrl;
 
   // Lazy loading with IntersectionObserver
   useEffect(() => {
@@ -46,13 +52,22 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
 
   const handleImageLoad = () => {
     setImageLoaded(true);
+    setImageError(false);
   };
 
   const handleImageError = () => {
-    setImageError(true);
+    // Retry up to 2 times before giving up
+    if (retryCount < 2) {
+      console.log(`Retrying thumbnail for ${person.name} (attempt ${retryCount + 1})...`);
+      setRetryCount(retryCount + 1);
+      setImageLoaded(false);
+    } else {
+      console.error(`Failed to load thumbnail for ${person.name} after ${retryCount + 1} attempts`);
+      setImageError(true);
+    }
   };
 
-  const showPlaceholder = !thumbnailUrl || imageError || (!imageLoaded && isVisible);
+  const showPlaceholder = !thumbnailUrlWithRetry || imageError || (!imageLoaded && isVisible);
 
   return (
     <div ref={cardRef} className="person-card" onClick={onClick}>
@@ -61,7 +76,7 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
           <div className="person-avatar-placeholder">
             {!isVisible ? (
               <div className="placeholder-shimmer"></div>
-            ) : imageError || !thumbnailUrl ? (
+            ) : imageError || !thumbnailUrlWithRetry ? (
               person.name.charAt(0).toUpperCase()
             ) : (
               <div className="placeholder-spinner"></div>
@@ -69,9 +84,9 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
           </div>
         ) : null}
 
-        {thumbnailUrl && isVisible && (
+        {thumbnailUrlWithRetry && isVisible && (
           <img
-            src={thumbnailUrl}
+            src={thumbnailUrlWithRetry}
             alt={person.name}
             onLoad={handleImageLoad}
             onError={handleImageError}

@@ -32,33 +32,40 @@ interface ClusteringResult {
   error?: string;
 }
 
-export function runFaceClustering(eps: number = 0.5, minSamples: number = 2): Promise<ClusteringResult> {
+export function runFaceClustering(eps?: number, minSamples?: number): Promise<ClusteringResult> {
   return new Promise((resolve, reject) => {
+    // Use environment variables for optimal clustering or fallback to parameters
+    const clusteringEps = eps ?? parseFloat(process.env.CLUSTERING_EPS || '0.65');
+    const clusteringMinSamples = minSamples ?? parseInt(process.env.CLUSTERING_MIN_SAMPLES || '2');
+    const clusteringMetric = process.env.CLUSTERING_METRIC || 'cosine';
+
+    console.log(`Running face clustering with eps=${clusteringEps}, minSamples=${clusteringMinSamples}, metric=${clusteringMetric}`);
+
     // Use ONNX clustering (optimized for 512-D embeddings with cosine similarity)
     const pythonScript = path.join(PYTHON_SERVICE_PATH, 'face_clustering_onnx.py');
 
     // On Windows, .bat files need to be executed with shell: true
     const spawnOptions = PYTHON_CMD.endsWith('.bat') ? { shell: true } : {};
-    const process = spawn(PYTHON_CMD, [
+    const clusterProcess = spawn(PYTHON_CMD, [
       toWindowsPath(pythonScript),
       '--db-path', toWindowsPath(DB_PATH),
-      '--eps', eps.toString(),
-      '--min-samples', minSamples.toString(),
-      '--metric', 'cosine'  // Use cosine similarity for ONNX embeddings
+      '--eps', clusteringEps.toString(),
+      '--min-samples', clusteringMinSamples.toString(),
+      '--metric', clusteringMetric  // Use cosine similarity for ONNX embeddings
     ], spawnOptions);
 
     let output = '';
     let errorOutput = '';
 
-    process.stdout?.on('data', (data) => {
+    clusterProcess.stdout?.on('data', (data) => {
       output += data.toString();
     });
 
-    process.stderr?.on('data', (data) => {
+    clusterProcess.stderr?.on('data', (data) => {
       errorOutput += data.toString();
     });
 
-    process.on('close', (code) => {
+    clusterProcess.on('close', (code) => {
       if (code === 0) {
         try {
           const result = JSON.parse(output.trim());
@@ -71,7 +78,7 @@ export function runFaceClustering(eps: number = 0.5, minSamples: number = 2): Pr
       }
     });
 
-    process.on('error', (err) => {
+    clusterProcess.on('error', (err) => {
       reject(err);
     });
   });

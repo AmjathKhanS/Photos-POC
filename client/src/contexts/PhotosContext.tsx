@@ -25,20 +25,13 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
   const [total, setTotal] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Prefetch full images for current page (gentle caching for instant lightbox)
+  // Aggressively prefetch ALL full images for instant lightbox - local files can handle it
   const prefetchFullImages = useCallback((photos: Photo[]) => {
-    // Only prefetch first 2 photos to minimize bandwidth and avoid lag
-    setTimeout(() => {
-      photos.slice(0, 2).forEach((photo, index) => {
-        setTimeout(() => {
-          const img = new Image();
-          img.src = photo.fullUrl;
-        }, index * 500); // Stagger by 500ms each
-      });
-    }, 2000); // Wait 2s after thumbnails load to avoid lag
-
-    // Skip prefetching remaining photos - let hover handle it
-    // This prevents lag during scrolling and pagination
+    // Prefetch ALL photos in the current page immediately - no delays for local files
+    photos.forEach((photo) => {
+      const img = new Image();
+      img.src = photo.fullUrl;
+    });
   }, []);
 
   // Ultra-aggressive: Prefetch ALL remaining pages immediately - fire and forget
@@ -49,7 +42,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
 
     if (remainingPages <= 0) return;
 
-    console.log(`[PhotosContext] 🌐 INSTANT PREFETCH: Firing ALL ${remainingPages} remaining pages (${remainingPages * pageSize} photos) simultaneously...`);
+    console.log(`[PhotosContext] 🌐 INSTANT PREFETCH: Firing ALL ${remainingPages} remaining pages (${remainingPages * pageSize} photos) - thumbnails + full images...`);
 
     // Fire ALL requests instantly - don't wait for anything
     for (let pageNum = currentPage + 1; pageNum <= totalPages; pageNum++) {
@@ -62,14 +55,19 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
 
           const data = await response.json();
 
-          // Preload all thumbnails immediately
+          // Preload thumbnails + full images immediately for instant lightbox
           data.photos.forEach((photo: Photo) => {
-            const img = new Image();
-            img.src = photo.thumbnailUrl;
+            // Thumbnail
+            const thumb = new Image();
+            thumb.src = photo.thumbnailUrl;
+
+            // Full image for instant lightbox
+            const full = new Image();
+            full.src = photo.fullUrl;
           });
 
           if (pageNum % 10 === 0) {
-            console.log(`[PhotosContext] ✅ Prefetched up to page ${pageNum}`);
+            console.log(`[PhotosContext] ✅ Prefetched thumbnails + full images up to page ${pageNum}`);
           }
         } catch (err) {
           // Silent fail for prefetch
@@ -77,7 +75,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
       })();
     }
 
-    console.log(`[PhotosContext] 🎉 ALL ${totalPhotos} thumbnail requests fired instantly!`);
+    console.log(`[PhotosContext] 🎉 ALL ${totalPhotos} thumbnail + full image requests fired instantly!`);
   }, []);
 
   // Prefetch multiple pages ahead for seamless scrolling
@@ -97,13 +95,16 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
 
           const data = await response.json();
 
-          // Preload all thumbnails immediately (browser handles concurrency)
+          // Preload thumbnails + full images immediately for instant lightbox
           data.photos.forEach((photo: Photo) => {
-            const img = new Image();
-            img.src = photo.thumbnailUrl;
+            const thumb = new Image();
+            thumb.src = photo.thumbnailUrl;
+
+            const full = new Image();
+            full.src = photo.fullUrl;
           });
 
-          console.log(`[PhotosContext] ✅ Prefetched page ${pageNum} (${data.photos.length} photos)`);
+          console.log(`[PhotosContext] ✅ Prefetched thumbnails + full images page ${pageNum} (${data.photos.length} photos)`);
         } catch (err) {
           // Silent fail - prefetching is non-critical
         }
@@ -124,10 +125,13 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       console.log(`[PhotosContext] Received ${data.photos.length} photos for page ${pageNum}`);
 
-      // Immediately start preloading thumbnails for current page BEFORE setting state
+      // Immediately start preloading thumbnails + full images BEFORE setting state
       data.photos.forEach((photo: Photo) => {
-        const img = new Image();
-        img.src = photo.thumbnailUrl;
+        const thumb = new Image();
+        thumb.src = photo.thumbnailUrl;
+
+        const full = new Image();
+        full.src = photo.fullUrl;
       });
 
       // Update state immediately - don't wait for images to load

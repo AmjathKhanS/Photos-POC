@@ -46,25 +46,19 @@ export function Lightbox({
     setThumbnailLoaded(false);
   }, [currentIndex]);
 
-  // Prefetch adjacent images for instant navigation
+  // Aggressively prefetch surrounding images for instant navigation
   useEffect(() => {
-    const prefetchImages: string[] = [];
+    // Prefetch 10 images in each direction for instant navigation
+    const prefetchRange = 10;
+    const startIndex = Math.max(0, currentIndex - prefetchRange);
+    const endIndex = Math.min(photos.length - 1, currentIndex + prefetchRange);
 
-    // Prefetch previous image
-    if (currentIndex > 0) {
-      prefetchImages.push(photos[currentIndex - 1].fullUrl);
+    for (let i = startIndex; i <= endIndex; i++) {
+      if (i !== currentIndex) {
+        const img = new Image();
+        img.src = photos[i].fullUrl;
+      }
     }
-
-    // Prefetch next image
-    if (currentIndex < photos.length - 1) {
-      prefetchImages.push(photos[currentIndex + 1].fullUrl);
-    }
-
-    // Prefetch in background
-    prefetchImages.forEach(url => {
-      const img = new Image();
-      img.src = url;
-    });
   }, [currentIndex, photos]);
 
   // Prevent body scroll when lightbox is open
@@ -77,8 +71,8 @@ export function Lightbox({
 
   const handleImageLoad = () => {
     setLoading(false);
-    // Fade out thumbnail once full image is loaded
-    setTimeout(() => setShowThumbnail(false), 100);
+    // Instantly hide thumbnail when full image loads (no delay for local files)
+    setShowThumbnail(false);
   };
 
   const handleThumbnailLoad = () => {
@@ -117,7 +111,7 @@ export function Lightbox({
                 style={{
                   filter: loading ? 'blur(8px)' : 'blur(0px)',
                   opacity: thumbnailLoaded ? 1 : 0,
-                  transition: 'opacity 0.05s, filter 0.1s',
+                  transition: 'opacity 0.01s, filter 0.05s', // Ultra-fast for local files
                   transform: 'scale(1.05)' // Slight scale to hide blur edges
                 }}
               />
@@ -133,7 +127,7 @@ export function Lightbox({
               onLoad={handleImageLoad}
               style={{
                 opacity: loading ? 0 : 1,
-                transition: 'opacity 0.15s ease-in'
+                transition: 'opacity 0.05s ease-in' // Instant for prefetched local files
               }}
               decoding="async"
               loading="eager"
