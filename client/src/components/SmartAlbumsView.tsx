@@ -141,7 +141,7 @@ export const SmartAlbumsView: React.FC<SmartAlbumsViewProps> = ({
                 <div className="album-cover">
                   {album.cover_photo_filename ? (
                     <img
-                      src={`http://localhost:3002/api/photos/thumbnail/${album.cover_photo_filename}`}
+                      src={`http://localhost:3002/api/photos/thumbnail/${encodeURIComponent(album.cover_photo_filename)}`}
                       alt={album.title}
                       loading="lazy"
                     />

@@ -8,6 +8,7 @@ import cron from 'node-cron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import photosRouter from './routes/photos.js';
+import videosRouter from './routes/videos.js';
 import facesRouter from './routes/faces.js';
 import memoriesRouter from './routes/memories.js';
 import semanticSearchRouter from './routes/semanticSearch.js';
@@ -144,6 +145,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Routes
 app.use('/api/photos', photosRouter);
+app.use('/api/videos', videosRouter);
 app.use('/api/faces', facesRouter);
 app.use('/api/memories', memoriesRouter);
 app.use('/api/semantic-search', semanticSearchRouter);

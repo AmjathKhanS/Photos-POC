@@ -99,7 +99,9 @@ export function PersonCard({ person, onClick }: PersonCardProps) {
         )}
       </div>
       <div className="person-info">
-        <span className="person-name">{person.name}</span>
+        {!person.name.match(/^Person \d+$/) && (
+          <span className="person-name">{person.name}</span>
+        )}
         <span className="person-count">{person.face_count} photos</span>
       </div>
     </div>

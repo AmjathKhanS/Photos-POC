@@ -411,11 +411,197 @@ class MemoryGenerator:
         result = self.generate_on_this_day_memory(today)
         return [result] if result else []
 
+    def generate_weekly_highlights(self) -> Optional[Dict]:
+        """
+        Generate "Weekly Highlights" memory
+
+        Finds best photos from the past 7 days
+        Minimum 5 photos required, maximum 20 best photos selected
+        """
+        cursor = self.conn.cursor()
+
+        # Get photos from last 7 days
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=7)
+
+        results = cursor.execute('''
+            SELECT photo_filename
+            FROM photo_metadata
+            WHERE date_taken >= ? AND date_taken <= ?
+            ORDER BY date_taken DESC
+        ''', (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))).fetchall()
+
+        candidate_photos = [row['photo_filename'] for row in results]
+
+        if len(candidate_photos) < 5:
+            return None  # Not enough photos
+
+        # Select best photos
+        photo_scores = self.select_best_photos(candidate_photos, max_count=20)
+        cover_photo = self.select_cover_photo(photo_scores)
+
+        # Create memory data
+        memory_data = {
+            'memory_type': 'weekly',
+            'title': f'This Week\'s Highlights',
+            'description': f'{len(photo_scores)} highlights from the past week',
+            'date_start': start_date.strftime('%Y-%m-%d'),
+            'date_end': end_date.strftime('%Y-%m-%d'),
+            'memory_date': end_date.strftime('%Y-%m-%d'),
+            'cover_photo': cover_photo
+        }
+
+        # Save memory
+        memory_id = self.save_memory(memory_data, photo_scores)
+
+        return {
+            'memory_id': memory_id,
+            'type': 'weekly',
+            'photo_count': len(photo_scores),
+            'title': memory_data['title']
+        }
+
+    def generate_monthly_highlights(self) -> Optional[Dict]:
+        """
+        Generate "Monthly Highlights" memory
+
+        Finds best photos from the past 30 days
+        Minimum 10 photos required, maximum 30 best photos selected
+        """
+        cursor = self.conn.cursor()
+
+        # Get photos from last 30 days
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30)
+
+        results = cursor.execute('''
+            SELECT photo_filename
+            FROM photo_metadata
+            WHERE date_taken >= ? AND date_taken <= ?
+            ORDER BY date_taken DESC
+        ''', (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))).fetchall()
+
+        candidate_photos = [row['photo_filename'] for row in results]
+
+        if len(candidate_photos) < 10:
+            return None  # Not enough photos
+
+        # Select best photos
+        photo_scores = self.select_best_photos(candidate_photos, max_count=30)
+        cover_photo = self.select_cover_photo(photo_scores)
+
+        # Create memory data
+        memory_data = {
+            'memory_type': 'monthly',
+            'title': f'{end_date.strftime("%B %Y")} Highlights',
+            'description': f'{len(photo_scores)} highlights from this month',
+            'date_start': start_date.strftime('%Y-%m-%d'),
+            'date_end': end_date.strftime('%Y-%m-%d'),
+            'memory_date': end_date.strftime('%Y-%m-%d'),
+            'cover_photo': cover_photo
+        }
+
+        # Save memory
+        memory_id = self.save_memory(memory_data, photo_scores)
+
+        return {
+            'memory_id': memory_id,
+            'type': 'monthly',
+            'photo_count': len(photo_scores),
+            'title': memory_data['title']
+        }
+
+    def generate_seasonal_memories(self) -> List[Dict]:
+        """
+        Generate seasonal memories (Summer, Winter, etc.)
+
+        Finds best photos from the current season
+        """
+        cursor = self.conn.cursor()
+        today = datetime.now()
+
+        # Determine current season
+        month = today.month
+        if month in [3, 4, 5]:
+            season = 'Spring'
+            months = [3, 4, 5]
+        elif month in [6, 7, 8]:
+            season = 'Summer'
+            months = [6, 7, 8]
+        elif month in [9, 10, 11]:
+            season = 'Fall'
+            months = [9, 10, 11]
+        else:
+            season = 'Winter'
+            months = [12, 1, 2]
+
+        # Get photos from current season
+        results = cursor.execute('''
+            SELECT photo_filename
+            FROM photo_metadata
+            WHERE date_taken_year = ? AND date_taken_month IN ({})
+            ORDER BY date_taken DESC
+        '''.format(','.join('?' * len(months))), [today.year] + months).fetchall()
+
+        candidate_photos = [row['photo_filename'] for row in results]
+
+        if len(candidate_photos) < 10:
+            return []  # Not enough photos
+
+        # Select best photos
+        photo_scores = self.select_best_photos(candidate_photos, max_count=25)
+        cover_photo = self.select_cover_photo(photo_scores)
+
+        # Create memory data
+        memory_data = {
+            'memory_type': 'seasonal',
+            'title': f'{season} {today.year}',
+            'description': f'{len(photo_scores)} photos from {season.lower()}',
+            'memory_date': today.strftime('%Y-%m-%d'),
+            'cover_photo': cover_photo
+        }
+
+        # Save memory
+        memory_id = self.save_memory(memory_data, photo_scores)
+
+        return [{
+            'memory_id': memory_id,
+            'type': 'seasonal',
+            'photo_count': len(photo_scores),
+            'title': memory_data['title']
+        }]
+
     def run(self, action: str) -> Dict:
         """Run memory generation action"""
         try:
             if action == 'daily':
                 memories = self.generate_daily_memories()
+                return {
+                    'status': 'completed',
+                    'action': action,
+                    'memories_created': len(memories),
+                    'memories': memories
+                }
+            elif action == 'weekly':
+                result = self.generate_weekly_highlights()
+                memories = [result] if result else []
+                return {
+                    'status': 'completed',
+                    'action': action,
+                    'memories_created': len(memories),
+                    'memories': memories
+                }
+            elif action == 'monthly':
+                result = self.generate_monthly_highlights()
+                memories = [result] if result else []
+                return {
+                    'status': 'completed',
+                    'action': action,
+                    'memories_created': len(memories),
+                    'memories': memories
+                }
+            elif action == 'seasonal':
+                memories = self.generate_seasonal_memories()
                 return {
                     'status': 'completed',
                     'action': action,

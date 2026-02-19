@@ -9,4 +9,13 @@ export interface Photo {
   width?: number;
   height?: number;
   isScreenshot?: boolean;
+  // EXIF metadata
+  dateTaken?: string;
+  cameraMake?: string;
+  cameraModel?: string;
+  iso?: number;
+  aperture?: number;
+  shutterSpeed?: string;
+  focalLength?: number;
+  lensModel?: string;
 }

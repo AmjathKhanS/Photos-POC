@@ -37,11 +37,35 @@ async function reverseGeocode(lat, lon) {
 
     const address = data.address || {};
 
+    // Extract city/town/village from various address fields
+    // OpenStreetMap uses different fields depending on location type
+    let city =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.hamlet ||
+      address.suburb ||
+      address.county ||
+      address.state_district;
+
+    // For rural/remote areas without a defined city, use alternative identifiers
+    if (!city && address.road) {
+      // Use road/locality name as a fallback (e.g., "Chandragad-Mahableshwar")
+      city = address.road;
+    } else if (!city && address.tourism) {
+      // Tourist/landmark areas
+      city = address.tourism;
+    } else if (!city && (address.state || address.region)) {
+      // Use state as last resort
+      city = `${address.state || address.region} (Region)`;
+    }
+
     return {
       country: address.country || null,
       country_code: address.country_code?.toUpperCase() || null,
       state: address.state || address.province || address.region || null,
-      city: address.city || address.town || address.village || address.municipality || null,
+      city: city || null,
       postal_code: address.postcode || null,
       address: data.display_name || null
     };

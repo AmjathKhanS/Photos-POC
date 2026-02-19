@@ -104,7 +104,7 @@ export function FaceTaggingOverlay({
             }}
             onClick={(e) => handleFaceClick(face, e)}
           >
-            {face.person_name && (
+            {face.person_name && !face.person_name.match(/^Person \d+$/) && (
               <span className="face-label">{face.person_name}</span>
             )}
           </div>
@@ -124,17 +124,19 @@ export function FaceTaggingOverlay({
           >
             <h4>Who is this?</h4>
 
-            {persons.length > 0 && (
+            {persons.filter(p => !p.name.match(/^Person \d+$/)).length > 0 && (
               <div className="person-list">
-                {persons.map(person => (
-                  <button
-                    key={person.id}
-                    className="person-option"
-                    onClick={() => handleAssign(person.id)}
-                  >
-                    {person.name}
-                  </button>
-                ))}
+                {persons
+                  .filter(person => !person.name.match(/^Person \d+$/))
+                  .map(person => (
+                    <button
+                      key={person.id}
+                      className="person-option"
+                      onClick={() => handleAssign(person.id)}
+                    >
+                      {person.name}
+                    </button>
+                  ))}
               </div>
             )}
 

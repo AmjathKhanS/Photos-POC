@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getPhotoList, getThumbnail, getFullImage, invalidatePhotoListCache } from '../services/photoService.js';
 import { validateFilename, validatePagination } from '../middleware/validation.js';
 import { getPreloadProgress } from '../services/thumbnailPreloader.js';
+import { getPhotoMetadata } from '../services/sqliteDatabase.js';
 
 const router = Router();
 
@@ -126,6 +127,41 @@ router.get('/thumbnail-info/:filename', validateFilename, async (req, res) => {
   } catch (error) {
     console.error('Error getting thumbnail info:', error);
     res.status(500).json({ error: 'Failed to get thumbnail info' });
+  }
+});
+
+// GET /api/photos/metadata/:filename - Get photo EXIF metadata
+router.get('/metadata/:filename', validateFilename, (req, res) => {
+  try {
+    const { filename } = req.params;
+    const metadata = getPhotoMetadata(filename);
+
+    if (!metadata) {
+      res.status(404).json({ error: 'Metadata not found for this photo' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      metadata: {
+        filename: metadata.photo_filename,
+        width: metadata.width,
+        height: metadata.height,
+        dateTaken: metadata.date_taken,
+        cameraMake: metadata.camera_make,
+        cameraModel: metadata.camera_model,
+        iso: metadata.iso,
+        aperture: metadata.aperture,
+        shutterSpeed: metadata.shutter_speed,
+        focalLength: metadata.focal_length,
+        lensModel: metadata.lens_model,
+        fileSize: metadata.file_size,
+        orientation: metadata.orientation
+      }
+    });
+  } catch (error) {
+    console.error('Error getting photo metadata:', error);
+    res.status(500).json({ error: 'Failed to get photo metadata' });
   }
 });
 

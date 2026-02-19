@@ -31,6 +31,7 @@ if (!process.env.PHOTOS_DIR) {
 const PHOTOS_DIR = process.env.PHOTOS_DIR;
 const THUMBNAIL_SIZE = parseInt(process.env.MAX_THUMBNAIL_SIZE || '800'); // 800px for ultra-sharp thumbnails on high-DPI displays
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'];
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp', '.wmv'];
 
 // In-memory cache for photo metadata (dimensions and screenshot detection)
 // Key: filename:modifiedTime, Value: {width, height, isScreenshot}
@@ -152,6 +153,15 @@ interface Photo {
   width?: number;
   height?: number;
   isScreenshot?: boolean;
+  // EXIF metadata
+  dateTaken?: string;
+  cameraMake?: string;
+  cameraModel?: string;
+  iso?: number;
+  aperture?: number;
+  shutterSpeed?: string;
+  focalLength?: number;
+  lensModel?: string;
 }
 
 interface ImageResult {
@@ -164,6 +174,10 @@ let photoListCache: Photo[] | null = null;
 let photoListCacheTime = 0;
 let lastPhotoCount = 0;
 const PHOTO_LIST_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (longer cache)
+
+// Invalidate cache on startup to ensure videos are excluded
+photoListCache = null;
+photoListCacheTime = 0;
 
 export async function getPhotoList(): Promise<Photo[]> {
   // Return cached list if still valid
@@ -179,7 +193,8 @@ export async function getPhotoList(): Promise<Photo[]> {
 
   const supportedFiles = files.filter(file => {
     const ext = path.extname(file).toLowerCase();
-    return SUPPORTED_EXTENSIONS.includes(ext);
+    // Only include image files, exclude videos
+    return SUPPORTED_EXTENSIONS.includes(ext) && !VIDEO_EXTENSIONS.includes(ext);
   });
   console.log('Supported image files:', supportedFiles.length);
 
@@ -385,6 +400,7 @@ export async function getThumbnail(filename: string): Promise<ImageResult> {
     // Generate high-quality thumbnail optimized for performance
     const imageBuffer = await getImageBuffer(filename);
     const thumbnail = await sharp(imageBuffer)
+      .rotate() // Auto-rotate based on EXIF Orientation tag
       .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
         fit: 'cover',
         position: 'center',
@@ -476,6 +492,7 @@ export async function getFullImage(filename: string): Promise<ImageResult> {
 
     // Optimize image for web display
     const processed = await sharp(buffer)
+      .rotate() // Auto-rotate based on EXIF Orientation tag
       .resize(2400, 2400, {
         fit: 'inside',
         withoutEnlargement: true,

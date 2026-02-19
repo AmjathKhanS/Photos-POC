@@ -2,6 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import type { Photo } from '../types/photo';
 import { useKeyboard } from '../hooks/useKeyboard';
 
+interface PhotoMetadata {
+  filename: string;
+  width: number;
+  height: number;
+  dateTaken?: string;
+  cameraMake?: string;
+  cameraModel?: string;
+  iso?: number;
+  aperture?: number;
+  shutterSpeed?: string;
+  focalLength?: number;
+  lensModel?: string;
+  fileSize: number;
+  orientation: string;
+}
+
 interface LightboxProps {
   photos: Photo[];
   currentIndex: number;
@@ -18,6 +34,7 @@ export function Lightbox({
   const [loading, setLoading] = useState(true);
   const [showThumbnail, setShowThumbnail] = useState(true);
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
+  const [metadata, setMetadata] = useState<PhotoMetadata | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const currentPhoto = photos[currentIndex];
 
@@ -39,6 +56,26 @@ export function Lightbox({
     onArrowRight: handleNext,
     enabled: true
   });
+
+  // Fetch metadata for current photo
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const response = await fetch(`/api/photos/metadata/${encodeURIComponent(currentPhoto.filename)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setMetadata(data.metadata);
+        } else {
+          setMetadata(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch metadata:', error);
+        setMetadata(null);
+      }
+    };
+
+    fetchMetadata();
+  }, [currentPhoto.filename]);
 
   useEffect(() => {
     setLoading(true);
@@ -137,10 +174,71 @@ export function Lightbox({
 
         {/* Photo info */}
         <div className="lightbox-info">
-          <span className="lightbox-filename">{currentPhoto.filename}</span>
-          <span className="lightbox-counter">
-            {currentIndex + 1} / {photos.length}
-          </span>
+          <div className="lightbox-header">
+            <span className="lightbox-filename">{currentPhoto.filename}</span>
+            <span className="lightbox-counter">
+              {currentIndex + 1} / {photos.length}
+            </span>
+          </div>
+
+          {/* Metadata details - always visible */}
+          {metadata && (
+            <div className="lightbox-details">
+              {metadata.width && metadata.height && (
+                <span className="detail-item">
+                  {metadata.width} × {metadata.height}
+                </span>
+              )}
+
+              {metadata.fileSize && (
+                <span className="detail-item">
+                  {(metadata.fileSize / 1024 / 1024).toFixed(2)} MB
+                </span>
+              )}
+
+              {metadata.dateTaken && (
+                <span className="detail-item">
+                  {new Date(metadata.dateTaken).toLocaleDateString()} {new Date(metadata.dateTaken).toLocaleTimeString()}
+                </span>
+              )}
+
+              {(metadata.cameraMake || metadata.cameraModel) && (
+                <span className="detail-item">
+                  📷 {metadata.cameraMake} {metadata.cameraModel}
+                </span>
+              )}
+
+              {metadata.lensModel && (
+                <span className="detail-item">
+                  🔍 {metadata.lensModel}
+                </span>
+              )}
+
+              {metadata.iso && (
+                <span className="detail-item">
+                  ISO {metadata.iso}
+                </span>
+              )}
+
+              {metadata.aperture && (
+                <span className="detail-item">
+                  f/{metadata.aperture.toFixed(1)}
+                </span>
+              )}
+
+              {metadata.shutterSpeed && (
+                <span className="detail-item">
+                  {metadata.shutterSpeed}s
+                </span>
+              )}
+
+              {metadata.focalLength && (
+                <span className="detail-item">
+                  {metadata.focalLength.toFixed(0)}mm
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

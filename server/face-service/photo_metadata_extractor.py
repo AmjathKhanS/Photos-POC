@@ -162,7 +162,12 @@ class PhotoMetadataExtractor:
                 'camera_model': None,
                 'has_gps': 0,
                 'latitude': None,
-                'longitude': None
+                'longitude': None,
+                'iso': None,
+                'aperture': None,
+                'shutter_speed': None,
+                'focal_length': None,
+                'lens_model': None
             }
 
             # Extract EXIF data
@@ -200,6 +205,50 @@ class PhotoMetadataExtractor:
                 elif tag_name == 'Model':
                     metadata['camera_model'] = str(value)
 
+                elif tag_name == 'ISOSpeedRatings' or tag_name == 'PhotographicSensitivity':
+                    try:
+                        metadata['iso'] = int(value)
+                    except:
+                        pass
+
+                elif tag_name == 'FNumber':
+                    try:
+                        # FNumber is stored as a ratio (e.g., 18/10 = f/1.8)
+                        if isinstance(value, tuple):
+                            metadata['aperture'] = float(value[0]) / float(value[1])
+                        else:
+                            metadata['aperture'] = float(value)
+                    except:
+                        pass
+
+                elif tag_name == 'ExposureTime':
+                    try:
+                        # ExposureTime is stored as a ratio (e.g., 1/100)
+                        if isinstance(value, tuple):
+                            num, denom = value[0], value[1]
+                            if num == 1:
+                                metadata['shutter_speed'] = f"1/{denom}"
+                            else:
+                                # For speeds slower than 1 second
+                                metadata['shutter_speed'] = f"{num}/{denom}"
+                        else:
+                            metadata['shutter_speed'] = str(value)
+                    except:
+                        pass
+
+                elif tag_name == 'FocalLength':
+                    try:
+                        # FocalLength is stored as a ratio (e.g., 400/10 = 40mm)
+                        if isinstance(value, tuple):
+                            metadata['focal_length'] = float(value[0]) / float(value[1])
+                        else:
+                            metadata['focal_length'] = float(value)
+                    except:
+                        pass
+
+                elif tag_name == 'LensModel':
+                    metadata['lens_model'] = str(value)
+
                 elif tag_name == 'GPSInfo':
                     # Parse GPS coordinates
                     gps_coords = self.parse_gps_coordinates(value)
@@ -231,8 +280,9 @@ class PhotoMetadataExtractor:
             INSERT OR REPLACE INTO photo_metadata
             (photo_filename, date_taken, date_taken_year, date_taken_month, date_taken_day,
              date_taken_season, file_size, width, height, orientation,
-             camera_make, camera_model, has_gps, latitude, longitude)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             camera_make, camera_model, has_gps, latitude, longitude,
+             iso, aperture, shutter_speed, focal_length, lens_model)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             filename,
             metadata['date_taken'],
@@ -248,7 +298,12 @@ class PhotoMetadataExtractor:
             metadata['camera_model'],
             metadata['has_gps'],
             metadata['latitude'],
-            metadata['longitude']
+            metadata['longitude'],
+            metadata['iso'],
+            metadata['aperture'],
+            metadata['shutter_speed'],
+            metadata['focal_length'],
+            metadata['lens_model']
         ))
 
         conn.commit()

@@ -5,6 +5,8 @@ import { useSemanticSearch } from './hooks/useSemanticSearch';
 import { PhotoGrid } from './components/PhotoGrid';
 import { Lightbox } from './components/Lightbox';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { VideoGrid } from './components/VideoGrid';
+import { VideoPlayer } from './components/VideoPlayer';
 import { PeopleView } from './components/PeopleView';
 import { PersonPhotosView } from './components/PersonPhotosView';
 import { DuplicatesView } from './components/DuplicatesView';
@@ -25,9 +27,10 @@ import { SelectionToolbar } from './components/SelectionToolbar';
 import type { Person } from './types/face';
 import type { Photo } from './types/photo';
 import type { Memory } from './types/memory';
+import type { Video } from './types/video';
 import './styles/index.css';
 
-type View = 'photos' | 'places' | 'location-photos' | 'people' | 'person-photos' | 'duplicates' | 'memories' | 'memory-detail' | 'smart-albums' | 'album-detail' | 'screenshots';
+type View = 'photos' | 'videos' | 'places' | 'location-photos' | 'people' | 'person-photos' | 'duplicates' | 'memories' | 'memory-detail' | 'smart-albums' | 'album-detail' | 'screenshots';
 
 // Minimal photo type for lightbox compatibility
 interface LightboxPhoto {
@@ -49,6 +52,7 @@ export default function App() {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<any | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{
     type: 'city' | 'country';
     city?: string;
@@ -434,6 +438,11 @@ export default function App() {
               selectionMode={isSelectionMode}
             />
           )}
+          {currentView === 'videos' && (
+            <VideoGrid
+              onVideoClick={(video) => setSelectedVideo(video)}
+            />
+          )}
           {currentView === 'people' && (
             <PeopleView
               onPersonClick={handlePersonClick}
@@ -501,6 +510,13 @@ export default function App() {
           currentIndex={lightboxIndex}
           onClose={handleCloseLightbox}
           onNavigate={handleNavigate}
+        />
+      )}
+
+      {selectedVideo && (
+        <VideoPlayer
+          video={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
         />
       )}
 

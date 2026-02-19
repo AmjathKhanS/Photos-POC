@@ -203,6 +203,11 @@ export interface PhotoMetadata {
   has_gps: number;
   latitude: number | null;
   longitude: number | null;
+  iso: number | null;
+  aperture: number | null;
+  shutter_speed: string | null;
+  focal_length: number | null;
+  lens_model: string | null;
   metadata_extracted_at: string;
 }
 
