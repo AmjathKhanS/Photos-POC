@@ -1,0 +1,19 @@
+# Railway Nixpacks Configuration for Python + Node.js
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip"]
+
+[phases.install]
+cmds = [
+  "npm install --prefix server",
+  "cd server && npm run build",
+  "python3 -m venv /app/venv_onnx",
+  "/app/venv_onnx/bin/pip install --upgrade pip",
+  "/app/venv_onnx/bin/pip install -r requirements_onnx.txt"
+]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
+
+[start]
+cmd = "cd server && node dist/index.js"

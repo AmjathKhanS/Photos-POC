@@ -1,0 +1,18 @@
+# Don't upload these to Railway
+client/
+node_modules/
+*.bat
+*.md
+.git/
+.vscode/
+venv/
+venv_onnx/
+__pycache__/
+*.pyc
+.env
+.env.local
+
+# Keep these - needed for server
+!server/
+!requirements_onnx.txt
+!face-service/

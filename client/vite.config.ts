@@ -16,15 +16,13 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    host: '0.0.0.0', // Bind to all network interfaces
+    strictPort: false,
     proxy: {
       '/api': {
         target: 'http://localhost:3002',
         changeOrigin: true
       }
-    },
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp'
     }
   },
   optimizeDeps: {

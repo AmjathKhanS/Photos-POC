@@ -1,0 +1,14 @@
+{
+  "name": "photoviewer-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Deployment and migration scripts",
+  "scripts": {
+    "upload": "node upload-to-cloudinary.js"
+  },
+  "dependencies": {
+    "cloudinary": "^2.0.0",
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
