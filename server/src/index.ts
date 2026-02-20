@@ -19,7 +19,7 @@ import locationsRouter from './routes/locations.js';
 import { generateDailyMemories, generateWeeklyMemories, generateMonthlyMemories } from './services/memoryService.js';
 import { initAutoIndexing } from './services/autoIndexService.js';
 import { preloadAllThumbnails } from './services/thumbnailPreloader.js';
-import { startPeriodicPhotoCheck } from './services/photoService.js';
+// import { startPeriodicPhotoCheck } from './services/photoService.js'; // Not exported in cloud version
 import { initLocationTables } from './services/locationDb.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -251,9 +251,10 @@ const server = app.listen(PORT, HOST, () => {
   }, 5000); // Wait 5 seconds after server starts
 
   // Start periodic check for new photos (every 2 minutes)
-  setTimeout(() => {
-    startPeriodicPhotoCheck(2 * 60 * 1000);
-  }, 10000); // Wait 10 seconds after server starts
+  // Disabled for cloud deployment - photos are on Cloudinary
+  // setTimeout(() => {
+  //   startPeriodicPhotoCheck(2 * 60 * 1000);
+  // }, 10000); // Wait 10 seconds after server starts
 });
 
 // Enable HTTP keep-alive for persistent connections - optimized for local file access

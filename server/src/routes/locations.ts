@@ -5,7 +5,7 @@
 
 import express from 'express';
 import * as locationService from '../services/locationService.js';
-import { getPhotoByFilename } from '../services/photoService.js';
+// import { getPhotoByFilename } from '../services/photoService.js'; // Not exported in cloud version
 
 const router = express.Router();
 
