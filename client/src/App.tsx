@@ -4,7 +4,6 @@ import { useLocationContext } from './contexts/LocationContext';
 import { useSemanticSearch } from './hooks/useSemanticSearch';
 import { PhotoGrid } from './components/PhotoGrid';
 import { Lightbox } from './components/Lightbox';
-import { LoadingSpinner } from './components/LoadingSpinner';
 import { VideoGrid } from './components/VideoGrid';
 import { VideoPlayer } from './components/VideoPlayer';
 import { PeopleView } from './components/PeopleView';

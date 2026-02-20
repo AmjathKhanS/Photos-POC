@@ -79,7 +79,7 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Prefetch multiple pages ahead for seamless scrolling
-  const prefetchNextPages = useCallback(async (startPage: number, numPages: number = 100) => {
+  const _prefetchNextPages = useCallback(async (startPage: number, numPages: number = 100) => {
     console.log(`[PhotosContext] 🚀 INSTANT Prefetching pages ${startPage} to ${startPage + numPages - 1}`);
 
     // Fire ALL requests instantly without waiting - maximum parallelization
