@@ -1,0 +1,11 @@
+# Cloudflare Pages Redirects Configuration
+# Proxy API requests to Render backend
+
+# API proxy - redirect all /api/* requests to Render backend
+/api/*  https://photos-poc.onrender.com/api/:splat  200
+
+# Health check proxy
+/health  https://photos-poc.onrender.com/health  200
+
+# SPA fallback - serve index.html for all other routes
+/*  /index.html  200
