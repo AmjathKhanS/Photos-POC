@@ -238,13 +238,15 @@ async function main() {
       const photoId = path.basename(photo.photo_filename, path.extname(photo.photo_filename));
       const result = await uploadPhoto(photo.photo_filename, photoId);
 
+      // Calculate progress
+      const progress = Math.round(((i + batch.indexOf(photo) + 1) / photos.length) * 100);
+
       if (result) {
         // Save to database
         saveCloudinaryUrl(photo.photo_filename, result.url, result.publicId);
         uploaded++;
         totalBytes += fileSize;
 
-        const progress = Math.round(((i + batch.indexOf(photo) + 1) / photos.length) * 100);
         console.log(`[${progress}%] ✅ Uploaded: ${photo.photo_filename} (${formatBytes(fileSize)})`);
       } else {
         failed++;
