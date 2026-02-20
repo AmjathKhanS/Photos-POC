@@ -60,10 +60,11 @@ function getCloudinaryUrl(localPath: string): string | null {
 /**
  * Get photo metadata from database
  */
-function getPhotoMetadata(filename: string): { path: string; id: number } | null {
+function getPhotoMetadata(filename: string): { path: string; id: string } | null {
   const database = getDb();
-  const query = database.prepare('SELECT id, path FROM photos WHERE filename = ?');
-  const result = query.get(filename) as { id: number; path: string } | undefined;
+  // Use photo_metadata table which is the actual table name in the database
+  const query = database.prepare('SELECT photo_filename as id, photo_filename as path FROM photo_metadata WHERE photo_filename = ?');
+  const result = query.get(filename) as { id: string; path: string } | undefined;
   return result || null;
 }
 
@@ -211,10 +212,19 @@ export async function getFullImage(filename: string): Promise<{ buffer: Buffer; 
  */
 export async function getPhotoList(): Promise<Array<any>> {
   const database = getDb();
+  // Use photo_metadata table which is the actual table name in the database
   const query = database.prepare(`
-    SELECT id, filename, path, created_at, taken_at, width, height, size
-    FROM photos
-    ORDER BY taken_at DESC, created_at DESC
+    SELECT
+      photo_filename as id,
+      photo_filename as filename,
+      photo_filename as path,
+      metadata_extracted_at as created_at,
+      date_taken as taken_at,
+      width,
+      height,
+      file_size as size
+    FROM photo_metadata
+    ORDER BY date_taken DESC, metadata_extracted_at DESC
   `);
 
   const photos = query.all() as Array<any>;
@@ -243,6 +253,54 @@ export async function getPhotoList(): Promise<Array<any>> {
       mimeType: mime.lookup(photo.filename) || 'application/octet-stream'
     };
   });
+}
+
+/**
+ * Get photo by filename - CLOUD AWARE
+ *
+ * Returns a single photo object with appropriate URLs based on storage mode
+ */
+export async function getPhotoByFilename(filename: string): Promise<any | null> {
+  const database = getDb();
+  const query = database.prepare(`
+    SELECT
+      photo_filename as id,
+      photo_filename as filename,
+      photo_filename as path,
+      metadata_extracted_at as created_at,
+      date_taken as taken_at,
+      width,
+      height,
+      file_size as size
+    FROM photo_metadata
+    WHERE photo_filename = ?
+  `);
+
+  const photo = query.get(filename) as any;
+  if (!photo) return null;
+
+  let thumbnailUrl = `/api/photos/thumbnail/${photo.filename}`;
+  let fullUrl = `/api/photos/full/${photo.filename}`;
+
+  // In cloud mode, check if we have Cloudinary URL
+  if (STORAGE_MODE === 'cloud') {
+    const cloudinaryUrl = getCloudinaryUrl(photo.path);
+    if (cloudinaryUrl) {
+      // Use Cloudinary URLs directly
+      thumbnailUrl = cloudinaryUrl.replace(
+        '/upload/',
+        `/upload/w_${THUMBNAIL_SIZE},h_${THUMBNAIL_SIZE},c_limit,q_90,f_auto/`
+      );
+      fullUrl = cloudinaryUrl.replace('/upload/', '/upload/q_auto:best,f_auto/');
+    }
+  }
+
+  return {
+    ...photo,
+    thumbnailUrl,
+    fullUrl,
+    mimeType: mime.lookup(photo.filename) || 'application/octet-stream'
+  };
 }
 
 /**
