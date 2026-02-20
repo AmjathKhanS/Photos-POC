@@ -34,10 +34,12 @@ server.log
 *.cache
 .parcel-cache/
 
-# Database - DO NOT COMMIT (contains sensitive face data)
-server/data/*.db
+# Database - Temporarily allowing faces.db for Render deployment
+# TODO: Remove faces.db from git after demo and use Render Disk instead
 server/data/*.db-*
 server/data/db.json
+# Allow faces.db for demo deployment
+# server/data/*.db
 
 # Photos directory - DO NOT COMMIT (large files, privacy)
 photos/
