@@ -5,6 +5,8 @@ import fsPromises from 'fs/promises';
 import os from 'os';
 import sharp from 'sharp';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
+import Database from 'better-sqlite3';
 import {
   getAllFaces as getAllFacesFromDb,
   getFacesByPhoto,
@@ -34,6 +36,31 @@ const PYTHON_SERVICE_PATH = process.env.FACE_SERVICE_PATH || path.join(__dirname
 const PHOTOS_DIR = process.env.PHOTOS_DIR;
 const DB_PATH = process.env.SQLITE_DB_PATH || path.join(process.env.DB_DIR || path.join(__dirname, '../../data'), 'faces.db');
 const MIN_FACE_CONFIDENCE = parseFloat(process.env.MIN_FACE_CONFIDENCE || '0.6');
+
+// Storage mode detection
+const STORAGE_MODE = process.env.PHOTOS_DIR === 'cloudinary' ? 'cloud' : 'local';
+
+// Database connection for Cloudinary URLs
+let db: Database.Database | null = null;
+
+function getDb() {
+  if (!db) {
+    db = new Database(DB_PATH);
+  }
+  return db;
+}
+
+/**
+ * Get Cloudinary URL for a photo filename
+ */
+function getCloudinaryUrl(filename: string): string | null {
+  if (STORAGE_MODE !== 'cloud') return null;
+
+  const database = getDb();
+  const query = database.prepare('SELECT cloudinary_url FROM cloudinary_urls WHERE local_path = ?');
+  const result = query.get(filename) as { cloudinary_url: string } | undefined;
+  return result?.cloudinary_url || null;
+}
 
 // Python executable configuration
 const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python3';
@@ -228,17 +255,37 @@ export async function getFaceThumbnail(faceId: number, size: number = 150): Prom
   const bbox = typeof face.bounding_box === 'string'
     ? JSON.parse(face.bounding_box)
     : face.bounding_box;
-  const imagePath = safePath(PHOTOS_DIR, face.photo_filename);
 
-  // Check if file exists
-  if (!fs.existsSync(imagePath)) {
-    throw new Error('Image file not found');
+  // ========== CLOUD MODE: Download from Cloudinary ==========
+  let imageBuffer: Buffer;
+
+  if (STORAGE_MODE === 'cloud') {
+    const cloudinaryUrl = getCloudinaryUrl(face.photo_filename);
+
+    if (!cloudinaryUrl) {
+      throw new Error(`Photo not found in Cloudinary: ${face.photo_filename}`);
+    }
+
+    // Download image from Cloudinary
+    console.log(`[FaceService] Downloading from Cloudinary for face thumbnail: ${face.photo_filename}`);
+    const response = await axios.get(cloudinaryUrl, { responseType: 'arraybuffer' });
+    imageBuffer = Buffer.from(response.data);
+  } else {
+    // ========== LOCAL MODE: Read from filesystem ==========
+    const imagePath = safePath(PHOTOS_DIR, face.photo_filename);
+
+    // Check if file exists
+    if (!fs.existsSync(imagePath)) {
+      throw new Error('Image file not found');
+    }
+
+    imageBuffer = fs.readFileSync(imagePath);
   }
 
   // sharp can handle HEIC files directly on Windows - no manual conversion needed!
   // IMPORTANT: Auto-rotate image based on EXIF orientation first
   // This ensures bounding boxes match the oriented view (especially for HEIC from iPhones)
-  const orientedImage = sharp(imagePath).rotate(); // Auto-rotate based on EXIF
+  const orientedImage = sharp(imageBuffer).rotate(); // Auto-rotate based on EXIF
 
   // Get metadata AFTER rotation to get correct dimensions
   const metadata = await orientedImage.metadata();
@@ -254,7 +301,7 @@ export async function getFaceThumbnail(faceId: number, size: number = 150): Prom
 
   // Crop face from oriented image
   // sharp handles HEIC->JPEG conversion automatically
-  const buffer = await sharp(imagePath)
+  const buffer = await sharp(imageBuffer)
     .rotate() // Apply EXIF orientation
     .extract({
       left: Math.round(left),
