@@ -78,40 +78,6 @@ export function PhotosProvider({ children }: { children: ReactNode }) {
     console.log(`[PhotosContext] 🎉 ALL ${totalPhotos} thumbnail + full image requests fired instantly!`);
   }, []);
 
-  // Prefetch multiple pages ahead for seamless scrolling
-  const _prefetchNextPages = useCallback(async (startPage: number, numPages: number = 100) => {
-    console.log(`[PhotosContext] 🚀 INSTANT Prefetching pages ${startPage} to ${startPage + numPages - 1}`);
-
-    // Fire ALL requests instantly without waiting - maximum parallelization
-    for (let i = 0; i < numPages; i++) {
-      const pageNum = startPage + i;
-
-      // Don't await - fire and forget for maximum speed
-      (async () => {
-        try {
-          // Use direct fetch for speed - no retry delays needed for local files
-          const response = await fetch(`/api/photos?page=${pageNum}&limit=120`);
-          if (!response.ok) return;
-
-          const data = await response.json();
-
-          // Preload thumbnails + full images immediately for instant lightbox
-          data.photos.forEach((photo: Photo) => {
-            const thumb = new Image();
-            thumb.src = photo.thumbnailUrl;
-
-            const full = new Image();
-            full.src = photo.fullUrl;
-          });
-
-          console.log(`[PhotosContext] ✅ Prefetched thumbnails + full images page ${pageNum} (${data.photos.length} photos)`);
-        } catch (err) {
-          // Silent fail - prefetching is non-critical
-        }
-      })();
-    }
-  }, []);
-
   const fetchPhotos = useCallback(async (pageNum: number, append: boolean = false) => {
     try {
       console.log(`[PhotosContext] Fetching page ${pageNum}, append=${append}`);
